@@ -1,7 +1,7 @@
 import click.testing
 import pytest
 
-from src.riweather import cli
+from riweather import cli
 
 
 @pytest.fixture
