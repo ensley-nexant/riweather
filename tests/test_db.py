@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from riweather.db import Base
-from riweather.db.models import Station, File, Zcta
+from riweather.db.models import File, Station, Zcta
 
 
 @pytest.fixture(scope="module")

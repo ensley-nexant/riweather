@@ -28,6 +28,10 @@ coverage = {extras = ["toml"], version = "^7.0.1"}
 pytest-cov = "^4.0.0"
 pytest-mock = "^3.10.0"
 
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.11.4"
+
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",
@@ -42,6 +46,10 @@ source = ["riweather"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.isort]
+profile = "black"
+line_length = 88
 
 [build-system]
 requires = ["poetry-core"]
