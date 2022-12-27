@@ -14,10 +14,10 @@ class NOAAFTPConnectionException(Exception):
 class NOAAFTPConnection:
     _host = "ftp.ncei.noaa.gov"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ftp: ftplib.FTP | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "NOAAFTPConnection":
         try:
             ftp = ftplib.FTP(host=self._host, timeout=30)
             ftp.login()
@@ -37,7 +37,13 @@ class NOAAFTPConnection:
 
         self.ftp = None
 
-    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO:
+    def read_file_as_bytes(
+        self, filename: str | os.PathLike
+    ) -> typing.IO | gzip.GzipFile:
+        if self.ftp is None:
+            raise NOAAFTPConnectionException(
+                "FTP connection could not be established."
+            ) from None
         try:
             stream = BytesIO()
             self.ftp.retrbinary("RETR {}".format(filename), stream.write)

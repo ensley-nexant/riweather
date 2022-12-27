@@ -2,7 +2,7 @@ import datetime
 import pathlib
 import zipfile
 from os import PathLike
-from typing import IO, Generator
+from typing import Generator
 
 import numpy as np
 import pandas as pd
@@ -10,13 +10,11 @@ import shapefile
 import shapely.geometry
 
 from riweather import MetadataSession
-from riweather.connection import NOAAFTPConnection
+from riweather.connection import NOAAFTPConnection, NOAAFTPConnectionException
 from riweather.db import models
 
 
-def open_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> shapefile.Reader:
-    print("HERE")
-    print(pathlib.Path(src).resolve())
+def open_zipped_shapefile(src: str | PathLike[str]) -> shapefile.Reader:
     with zipfile.ZipFile(pathlib.Path(src).resolve(), "r") as archive:
         shapefiles = [
             pathlib.Path(name).stem
@@ -40,7 +38,7 @@ def open_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> shapefile.Rea
     return shapefile.Reader(shp=shp, dbf=dbf, shx=shx)
 
 
-def iterate_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> Generator:
+def iterate_zipped_shapefile(src: str | PathLike[str]) -> Generator:
     with open_zipped_shapefile(pathlib.Path(src).resolve()) as sf:
         for shape_rec in sf:
             shape = shapely.geometry.shape(shape_rec.shape)
@@ -64,7 +62,7 @@ def map_zcta_to_state(zcta_centroid, county_metadata) -> dict:
     return hit
 
 
-def assemble_zcta_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
+def assemble_zcta_metadata(src: str | PathLike[str]) -> dict:
     src = pathlib.Path(src).resolve()
 
     county_metadata = {}
@@ -100,7 +98,7 @@ def assemble_zcta_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
     return zcta_metadata
 
 
-def assemble_station_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
+def assemble_station_metadata(src: str | PathLike[str]) -> dict:
     src = pathlib.Path(src).resolve()
     history = pd.read_csv(
         src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"]
@@ -153,6 +151,10 @@ def assemble_station_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
 def assemble_file_metadata() -> list[dict]:
     file_metadata = []
     with NOAAFTPConnection() as conn:
+        if conn.ftp is None:
+            raise NOAAFTPConnectionException(
+                "FTP connection could not be established."
+            ) from None
         for year in range(2006, datetime.date.today().year + 1):
             print(year)
             files = conn.ftp.mlsd(f"pub/data/noaa/{year}", ["size", "type"])
@@ -173,7 +175,7 @@ def assemble_file_metadata() -> list[dict]:
     return file_metadata
 
 
-def populate(src: str | PathLike[str] | IO[bytes]):
+def populate(src: str | PathLike[str]):
     zcta_metadata = assemble_zcta_metadata(src)
     station_metadata = assemble_station_metadata(src)
     file_metadata = assemble_file_metadata()
