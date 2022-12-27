@@ -63,7 +63,7 @@ def download_metadata(dst: pathlib.Path):
     dst.mkdir(parents=True, exist_ok=True)
 
     secho_inprog("Downloading NCEI station metadata...")
-    outloc = _cli_download_metadata("/pub/data/noaa/isd-history.csv", dst)
+    outloc = _cli_download_metadata("/pub/data/noaa/isd-historyasdoifj.csv", dst)
     secho_complete(" ---> {}".format(outloc))
 
     secho_inprog("Downloading NCEI station data quality report...")

@@ -1,3 +1,8 @@
+import ftplib
+import socket
+
+import pytest
+
 from riweather import connection
 
 
@@ -28,3 +33,17 @@ def test_ftp_retrieves_compressed_data(mock_ftp):
         contents = conn.read_file_as_bytes("/some/path/to/data.csv.z")
 
     assert contents.read() == b"compressed mock file contents"
+
+
+def test_ftp_bad_connection_errors_out(mock_ftp):
+    mock_ftp.side_effect = OSError
+    with pytest.raises(connection.NOAAFTPConnectionException, match="Could not connect"):
+        with connection.NOAAFTPConnection() as conn:
+            conn.ftp.getwelcome()
+
+
+def test_ftp_file_not_found_errors_out(mock_ftp):
+    mock_ftp.return_value.retrbinary.side_effect = ftplib.Error
+    with pytest.raises(connection.NOAAFTPConnectionException):
+        with connection.NOAAFTPConnection() as conn:
+            conn.read_file_as_bytes("no/such/file.csv")
