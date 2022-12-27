@@ -3,8 +3,10 @@ import pathlib
 
 import click
 import requests
+from sqlalchemy import create_engine
 
 from . import __version__, connection, utils
+from .db.actions import populate
 
 
 def _cli_download_metadata(filename, dst):
@@ -77,3 +79,20 @@ def download_metadata(dst: pathlib.Path):
     secho_inprog("Downloading US Census counties...", nl=True)
     outloc = _cli_download_census("https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_500k.zip", dst)
     secho_complete(" ---> {}".format(outloc))
+
+
+@main.command()
+@click.option("-s", "--src", required=True, type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path))
+def rebuild_db(src):
+    from riweather.db import Base
+
+    dbpath = pathlib.Path.home() / ".riweather" / "metadata.db"
+    # delete and recreate metadata.db if it already exists
+    dbpath.unlink(missing_ok=True)
+    dbpath.touch()
+
+    # drop and recreate tables before populating
+    metadata_engine = create_engine(f"sqlite+pysqlite:///{dbpath}")
+    Base.metadata.drop_all(metadata_engine)
+    Base.metadata.create_all(metadata_engine)
+    populate(src)
