@@ -22,10 +22,10 @@ class NOAAFTPConnection:
             ftp = ftplib.FTP(host=self._host, timeout=30)
             ftp.login()
             self.ftp = ftp
-        except OSError:
+        except OSError as e:
             raise NOAAFTPConnectionException(
                 f"Could not connect to the host: {self._host}."
-            )
+            ) from e
         return self
 
     def __exit__(self, *args):
@@ -43,7 +43,7 @@ class NOAAFTPConnection:
             self.ftp.retrbinary("RETR {}".format(filename), stream.write)
             stream.seek(0)
         except ftplib.all_errors as e:
-            raise NOAAFTPConnectionException(e)
+            raise NOAAFTPConnectionException(e) from e
 
         if utils.is_compressed(filename):
             return gzip.open(stream, "rb")

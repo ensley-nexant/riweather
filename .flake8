@@ -1,4 +1,5 @@
 [flake8]
+extend-select = B9
 max-complexity = 10
 max-line-length = 88
 application-import-names = riweather,tests
