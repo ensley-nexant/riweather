@@ -2,8 +2,22 @@ import tempfile
 
 import nox
 
-nox.options.sessions = "lint", "safety", "tests"
+nox.options.sessions = "lint", "tests"
 locations = "src", "tests", "./noxfile.py"
+
+
+def install_with_constraints(session, *args, **kwargs):
+    with tempfile.NamedTemporaryFile(delete=False) as requirements:
+        session.run(
+            "poetry",
+            "export",
+            "--with=dev",
+            "--format=constraints.txt",
+            "--without-hashes",
+            "--output={}".format(requirements.name),
+            external=True,
+        )
+        session.install("--constraint={}".format(requirements.name), *args, **kwargs)
 
 
 @nox.session(python=["3.10"])
@@ -16,8 +30,13 @@ def tests(session):
 @nox.session(python=["3.10"])
 def lint(session):
     args = session.posargs or locations
-    session.install(
-        "flake8", "flake8-black", "flake8-isort", "flake8-bugbear", "flake8-bandit"
+    install_with_constraints(
+        session,
+        "flake8",
+        "flake8-bandit",
+        "flake8-black",
+        "flake8-bugbear",
+        "flake8-isort",
     )
     session.run("flake8", *args)
 
@@ -25,14 +44,14 @@ def lint(session):
 @nox.session(python=["3.10"])
 def black(session):
     args = session.posargs or locations
-    session.install("black")
+    install_with_constraints(session, "black")
     session.run("black", *args)
 
 
 @nox.session(python=["3.10"])
 def isort(session):
     args = session.posargs or locations
-    session.install("isort")
+    install_with_constraints(session, "isort")
     session.run("isort", *args)
 
 
@@ -48,7 +67,5 @@ def safety(session):
             "--output={}".format(requirements.name),
             external=True,
         )
-        session.install("safety")
-        session.run(
-            "safety", "check", "--file={}".format(requirements.name), "--full-report"
-        )
+        install_with_constraints(session, "safety")
+        session.run("safety", "check", f"--file={requirements.name}", "--full-report")
