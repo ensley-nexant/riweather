@@ -1,6 +1,8 @@
+import tempfile
+
 import nox
 
-nox.options.sessions = "lint", "tests"
+nox.options.sessions = "lint", "safety", "tests"
 locations = "src", "tests", "./noxfile.py"
 
 
@@ -32,3 +34,21 @@ def isort(session):
     args = session.posargs or locations
     session.install("isort")
     session.run("isort", *args)
+
+
+@nox.session(python=["3.10"])
+def safety(session):
+    with tempfile.NamedTemporaryFile(delete=False) as requirements:
+        session.run(
+            "poetry",
+            "export",
+            "--with=dev",
+            "--format=requirements.txt",
+            "--without-hashes",
+            "--output={}".format(requirements.name),
+            external=True,
+        )
+        session.install("safety")
+        session.run(
+            "safety", "check", "--file={}".format(requirements.name), "--full-report"
+        )
