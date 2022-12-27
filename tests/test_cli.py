@@ -1,4 +1,6 @@
 import os
+import pathlib
+import traceback
 
 import click.testing
 import pytest
@@ -41,3 +43,12 @@ class TestDownloadMetadata:
                     assert f.read() == b"compressed mock file contents"
                 else:
                     assert f.read() == b"mock file contents"
+
+
+@pytest.mark.e2e
+def test_populate_succeeds_in_production(runner):
+    runner.invoke(cli.download_metadata, ["--dst", "../data"])
+    result = runner.invoke(cli.rebuild_db, ["--src", "../data"])
+    traceback.print_exception(*result.exc_info)
+    assert result.exit_code == 0
+    assert (pathlib.Path.home() / ".riweather" / "metadata.db").exists()

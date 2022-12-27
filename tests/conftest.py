@@ -7,6 +7,10 @@ import pytest
 from riweather import utils
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "e2e: mark as end-to-end test")
+
+
 @pytest.fixture(scope="module", autouse=True)
 def mock_requests_get(module_mocker):
     mock = module_mocker.patch("requests.get")

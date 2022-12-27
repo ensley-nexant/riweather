@@ -15,7 +15,9 @@ from riweather.db import models
 
 
 def open_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> shapefile.Reader:
-    with zipfile.ZipFile(src, "r") as archive:
+    print("HERE")
+    print(pathlib.Path(src).resolve())
+    with zipfile.ZipFile(pathlib.Path(src).resolve(), "r") as archive:
         shapefiles = [
             pathlib.Path(name).stem for name in archive.namelist() if name.endswith(".shp")
         ]
@@ -37,7 +39,7 @@ def open_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> shapefile.Rea
 
 
 def iterate_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> Generator:
-    with open_zipped_shapefile(src) as sf:
+    with open_zipped_shapefile(pathlib.Path(src).resolve()) as sf:
         for shape_rec in sf:
             shape = shapely.geometry.shape(shape_rec.shape)
             record = shape_rec.record.as_dict()
@@ -62,7 +64,7 @@ def map_zcta_to_state(zcta_centroid, county_metadata) -> dict:
 
 
 def assemble_zcta_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
-    src = pathlib.Path(src)
+    src = pathlib.Path(src).resolve()
 
     county_metadata = {}
     for shape, record in iterate_zipped_shapefile(src / "cb_2020_us_county_500k.zip"):
@@ -98,7 +100,7 @@ def assemble_zcta_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
 
 
 def assemble_station_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
-    src = pathlib.Path(src)
+    src = pathlib.Path(src).resolve()
     history = pd.read_csv(src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"])
 
     for col in ["LAT", "LON", "ELEV(M)"]:

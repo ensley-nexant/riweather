@@ -6,7 +6,6 @@ import requests
 from sqlalchemy import create_engine
 
 from . import __version__, connection, utils
-from .db.actions import populate
 
 
 def _cli_download_metadata(filename, dst):
@@ -85,6 +84,7 @@ def download_metadata(dst: pathlib.Path):
 @click.option("-s", "--src", required=True, type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path))
 def rebuild_db(src):
     from riweather.db import Base
+    from riweather.db.actions import populate
 
     dbpath = pathlib.Path.home() / ".riweather" / "metadata.db"
     # delete and recreate metadata.db if it already exists
