@@ -13,3 +13,7 @@ ignore =
     E203,
     # allow line break before binary operator to align with black
     W503,
+    # allow calling FTP-related functions, overriding bandit
+    S321,
+    # allow importing FTP module, overriding bandit
+    S402,
