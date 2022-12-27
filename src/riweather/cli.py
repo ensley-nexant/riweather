@@ -33,7 +33,9 @@ def _cli_download_census(url, dst, chunk_size=1024):
     n_chunks = int(int(r.headers.get("Content-Length", 0)) / chunk_size) or None
 
     with open(outloc, "wb") as fd:
-        with click.progressbar(r.iter_content(chunk_size=chunk_size), length=n_chunks) as bar:
+        with click.progressbar(
+            r.iter_content(chunk_size=chunk_size), length=n_chunks
+        ) as bar:
             for chunk in bar:
                 fd.write(chunk)
 
@@ -48,7 +50,12 @@ def main():
 
 
 @main.command()
-@click.option("-d", "--dst", required=True, type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path))
+@click.option(
+    "-d",
+    "--dst",
+    required=True,
+    type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
+)
 def download_metadata(dst: pathlib.Path):
     """Download weather station and US geography metadata.
 
@@ -72,16 +79,26 @@ def download_metadata(dst: pathlib.Path):
     secho_complete(" ---> {}".format(outloc))
 
     secho_inprog("Downloading US Census ZCTAs...", nl=True)
-    outloc = _cli_download_census("https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_zcta520_500k.zip", dst)
+    outloc = _cli_download_census(
+        "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_zcta520_500k.zip",
+        dst,
+    )
     secho_complete(" ---> {}".format(outloc))
 
     secho_inprog("Downloading US Census counties...", nl=True)
-    outloc = _cli_download_census("https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_500k.zip", dst)
+    outloc = _cli_download_census(
+        "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_500k.zip", dst
+    )
     secho_complete(" ---> {}".format(outloc))
 
 
 @main.command()
-@click.option("-s", "--src", required=True, type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path))
+@click.option(
+    "-s",
+    "--src",
+    required=True,
+    type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
+)
 def rebuild_db(src):
     from riweather.db import Base
     from riweather.db.actions import populate

@@ -62,7 +62,9 @@ class TestDatabase:
     def test_db_add_valid_station(self, session, valid_station):
         session.add(valid_station)
         session.commit()
-        station = session.query(Station).filter_by(usaf_id=valid_station.usaf_id).first()
+        station = (
+            session.query(Station).filter_by(usaf_id=valid_station.usaf_id).first()
+        )
         assert station == valid_station
 
     def test_db_add_valid_file(self, session, valid_file):

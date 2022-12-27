@@ -19,7 +19,9 @@ def open_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> shapefile.Rea
     print(pathlib.Path(src).resolve())
     with zipfile.ZipFile(pathlib.Path(src).resolve(), "r") as archive:
         shapefiles = [
-            pathlib.Path(name).stem for name in archive.namelist() if name.endswith(".shp")
+            pathlib.Path(name).stem
+            for name in archive.namelist()
+            if name.endswith(".shp")
         ]
         if len(shapefiles) == 0:
             raise ValueError("No shapefiles found in archive")
@@ -48,8 +50,7 @@ def iterate_zipped_shapefile(src: str | PathLike[str] | IO[bytes]) -> Generator:
 
 def map_zcta_to_state(zcta_centroid, county_metadata) -> dict:
     polygon_containment = filter(
-        lambda x: zcta_centroid.within(x["polygon"]),
-        county_metadata.values()
+        lambda x: zcta_centroid.within(x["polygon"]), county_metadata.values()
     )
     hit = next(polygon_containment, None)
 
@@ -101,7 +102,9 @@ def assemble_zcta_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
 
 def assemble_station_metadata(src: str | PathLike[str] | IO[bytes]) -> dict:
     src = pathlib.Path(src).resolve()
-    history = pd.read_csv(src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"])
+    history = pd.read_csv(
+        src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"]
+    )
 
     for col in ["LAT", "LON", "ELEV(M)"]:
         history[col] = history[col].str.lstrip("+").astype(float).replace(0, np.NaN)

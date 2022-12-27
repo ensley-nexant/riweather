@@ -17,7 +17,10 @@ def test_ftp_calls_retrbinary(mock_ftp):
     with connection.NOAAFTPConnection() as conn:
         conn.read_file_as_bytes("/some/path/to/data.csv")
 
-    assert mock_ftp.return_value.retrbinary.call_args.args[0] == "RETR /some/path/to/data.csv"
+    assert (
+        mock_ftp.return_value.retrbinary.call_args.args[0]
+        == "RETR /some/path/to/data.csv"
+    )
 
 
 def test_ftp_retrieves_uncompressed_data(mock_ftp):
@@ -36,7 +39,9 @@ def test_ftp_retrieves_compressed_data(mock_ftp):
 
 def test_ftp_bad_connection_errors_out(mock_ftp):
     mock_ftp.side_effect = OSError
-    with pytest.raises(connection.NOAAFTPConnectionException, match="Could not connect"):
+    with pytest.raises(
+        connection.NOAAFTPConnectionException, match="Could not connect"
+    ):
         with connection.NOAAFTPConnection() as conn:
             conn.ftp.getwelcome()
 

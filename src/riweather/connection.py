@@ -23,7 +23,9 @@ class NOAAFTPConnection:
             ftp.login()
             self.ftp = ftp
         except OSError:
-            raise NOAAFTPConnectionException(f"Could not connect to the host: {self._host}.")
+            raise NOAAFTPConnectionException(
+                f"Could not connect to the host: {self._host}."
+            )
         return self
 
     def __exit__(self, *args):
