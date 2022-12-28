@@ -1,0 +1,6 @@
+site_name: riweather
+site_author: John Ensley
+repo_url: https://github.com/ensley-nexant/riweather/
+theme:
+  name: material
+copyright: "&copy; 2022-2023 RESOURCE INNOVATIONS INC"

@@ -22,7 +22,7 @@ def install_with_constraints(session, *args, **kwargs):
         session.install("--constraint={}".format(requirements.name), *args, **kwargs)
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.11", "3.10"])
 def tests(session):
     """Run the test suite."""
     args = session.posargs or ["--cov"]
@@ -30,7 +30,7 @@ def tests(session):
     session.run("pytest", *args, external=True)
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.11", "3.10"])
 def lint(session):
     """Lint using flake8."""
     args = session.posargs or locations
@@ -46,7 +46,7 @@ def lint(session):
     session.run("flake8", *args)
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.11", "3.10"])
 def black(session):
     """Format code using black."""
     args = session.posargs or locations
@@ -54,7 +54,7 @@ def black(session):
     session.run("black", *args)
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.11", "3.10"])
 def isort(session):
     """Organize imports using isort."""
     args = session.posargs or locations
@@ -62,7 +62,7 @@ def isort(session):
     session.run("isort", *args)
 
 
-@nox.session(python=["3.10"])
+@nox.session(python=["3.11", "3.10"])
 def safety(session):
     """Scan dependencies for insecure packages."""
     with tempfile.NamedTemporaryFile(delete=False) as requirements:
@@ -77,3 +77,11 @@ def safety(session):
         )
         install_with_constraints(session, "safety")
         session.run("safety", "check", f"--file={requirements.name}", "--full-report")
+
+
+@nox.session(python=["3.11"])
+def docs(session):
+    """Build the documentation."""
+    args = session.posargs or ["-s"]
+    install_with_constraints(session, "mkdocs", "mkdocs-material")
+    session.run("mkdocs", "build", *args)
