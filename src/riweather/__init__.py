@@ -1,3 +1,7 @@
+"""riweather.
+
+Grab publicly available weather data.
+"""
 __version__ = "0.1.0"
 
 import os
@@ -16,3 +20,5 @@ from riweather.db import Base
 
 Base.metadata.create_all(metadata_engine)
 MetadataSession = sessionmaker(metadata_engine)
+
+from riweather.connection import NOAAFTPConnection

@@ -3,6 +3,7 @@ extend-select = B9
 max-complexity = 10
 max-line-length = 88
 application-import-names = riweather,tests
+docstring-convention = google
 per-file-ignores =
     # allow imports to be wonky in __init__.py files
     __init__.py: F401,E402,I

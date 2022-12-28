@@ -1,3 +1,4 @@
+"""Test module for the FTP connections."""
 import ftplib
 
 import pytest
@@ -6,6 +7,7 @@ from riweather import connection
 
 
 def test_connection_ftp_login_welcome(mock_ftp):
+    """Logs into the FTP server and can receive the welcome message."""
     with connection.NOAAFTPConnection() as conn:
         welcome = conn.ftp.getwelcome()
 
@@ -14,6 +16,7 @@ def test_connection_ftp_login_welcome(mock_ftp):
 
 
 def test_ftp_calls_retrbinary(mock_ftp):
+    """Makes a RETR call to the server."""
     with connection.NOAAFTPConnection() as conn:
         conn.read_file_as_bytes("/some/path/to/data.csv")
 
@@ -24,6 +27,7 @@ def test_ftp_calls_retrbinary(mock_ftp):
 
 
 def test_ftp_retrieves_uncompressed_data(mock_ftp):
+    """Retrieves data from an uncompressed file."""
     with connection.NOAAFTPConnection() as conn:
         contents = conn.read_file_as_bytes("/some/path/to/data.csv")
 
@@ -31,6 +35,7 @@ def test_ftp_retrieves_uncompressed_data(mock_ftp):
 
 
 def test_ftp_retrieves_compressed_data(mock_ftp):
+    """Retrieves data from a compressed file."""
     with connection.NOAAFTPConnection() as conn:
         contents = conn.read_file_as_bytes("/some/path/to/data.csv.z")
 
@@ -38,6 +43,7 @@ def test_ftp_retrieves_compressed_data(mock_ftp):
 
 
 def test_ftp_bad_connection_errors_out(mock_ftp):
+    """Fails gracefully in the event of an FTP error."""
     mock_ftp.side_effect = OSError
     with pytest.raises(
         connection.NOAAFTPConnectionException, match="Could not connect"
@@ -47,6 +53,7 @@ def test_ftp_bad_connection_errors_out(mock_ftp):
 
 
 def test_ftp_file_not_found_errors_out(mock_ftp):
+    """Fails gracefully when requesting a nonexistent file."""
     mock_ftp.return_value.retrbinary.side_effect = ftplib.Error
     with pytest.raises(connection.NOAAFTPConnectionException):
         with connection.NOAAFTPConnection() as conn:

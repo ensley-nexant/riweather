@@ -1,3 +1,4 @@
+"""Test module for the metadata database."""
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -8,6 +9,7 @@ from riweather.db.models import File, Station, Zcta
 
 @pytest.fixture(scope="module")
 def session():
+    """In-memory database session for testing."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     session = Session(engine)
@@ -18,6 +20,7 @@ def session():
 
 @pytest.fixture(scope="module")
 def valid_zcta():
+    """A sample valid ZCTA database object."""
     zcta = Zcta(
         zip="35768",
         latitude=34.77851579407223,
@@ -30,6 +33,7 @@ def valid_zcta():
 
 @pytest.fixture(scope="module")
 def valid_station():
+    """A sample valid Station database object."""
     station = Station(
         usaf_id="690150",
         wban_ids="93121,99999",
@@ -46,6 +50,7 @@ def valid_station():
 
 @pytest.fixture(scope="module")
 def valid_file(valid_station):
+    """A sample valid File database object."""
     file = File(
         wban_id="93121",
         year=2006,
@@ -56,10 +61,14 @@ def valid_file(valid_station):
 
 
 class TestDatabase:
+    """Test cases for the database."""
+
     def test_db_connection(self, session):
+        """The connection was successful."""
         assert session.is_active
 
     def test_db_add_valid_station(self, session, valid_station):
+        """A valid station can be inserted."""
         session.add(valid_station)
         session.commit()
         station = (
@@ -68,12 +77,14 @@ class TestDatabase:
         assert station == valid_station
 
     def test_db_add_valid_file(self, session, valid_file):
+        """A valid file can be inserted."""
         session.add(valid_file)
         session.commit()
         file = session.query(File).filter_by(wban_id=valid_file.wban_id).first()
         assert file == valid_file
 
     def test_db_add_valid_zcta(self, session, valid_zcta):
+        """A valid ZCTA can be inserted."""
         session.add(valid_zcta)
         session.commit()
         zcta = session.query(Zcta).filter_by(zip=valid_zcta.zip).first()

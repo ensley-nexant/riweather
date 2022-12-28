@@ -1,3 +1,4 @@
+"""Command line interface for riweather."""
 import functools
 import pathlib
 
@@ -8,7 +9,7 @@ from sqlalchemy import create_engine
 from . import __version__, connection, utils
 
 
-def _cli_download_metadata(filename, dst):
+def _cli_download_metadata(filename: str, dst: pathlib.Path) -> pathlib.Path:
     """Download metadata from NCEI/NOAA."""
     file_root = filename.split("/")[-1]
     if utils.is_compressed(file_root):
@@ -24,7 +25,9 @@ def _cli_download_metadata(filename, dst):
     return outloc
 
 
-def _cli_download_census(url, dst, chunk_size=1024):
+def _cli_download_census(
+    url: str, dst: pathlib.Path, chunk_size: int = 1024
+) -> pathlib.Path:
     """Download metadata from the US Census."""
     file_root = url.split("/")[-1]
     outloc = dst / file_root
@@ -44,8 +47,8 @@ def _cli_download_census(url, dst, chunk_size=1024):
 
 @click.group(context_settings={"auto_envvar_prefix": "RIWEATHER"})
 @click.version_option(version=__version__)
-def main():
-    """riweather makes grabbing weather data easier."""
+def main() -> None:
+    """Riweather makes grabbing weather data easier."""
     pass
 
 
@@ -56,7 +59,7 @@ def main():
     required=True,
     type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
 )
-def download_metadata(dst: pathlib.Path):
+def download_metadata(dst: pathlib.Path) -> None:
     """Download weather station and US geography metadata.
 
     Pulls files from the Internet that are necessary to (re)build the riweather
@@ -99,7 +102,12 @@ def download_metadata(dst: pathlib.Path):
     required=True,
     type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
 )
-def rebuild_db(src):
+def rebuild_db(src: pathlib.Path) -> None:
+    """Drop and recreate all tables in the metadata database.
+
+    Args:
+        src: Path to the primary source data
+    """
     from riweather.db import Base
     from riweather.db.actions import populate
 
