@@ -1,5 +1,6 @@
 """Nox sessions."""
 import tempfile
+from pathlib import Path
 
 import nox
 from nox import Session
@@ -28,7 +29,8 @@ def tests(session):
     """Run the test suite."""
     args = session.posargs or ["--cov"]
     session.run("poetry", "install", external=True)
-    session.run("pytest", *args, external=True)
+    install_with_constraints(session, ".", "coverage[toml]", "pytest", "pytest-cov", "pytest-mock")
+    session.run("coverage", "run", "--parallel", "-m", "pytest")
 
 
 @nox.session(python=["3.11", "3.10"])
@@ -91,6 +93,8 @@ def docs(session):
 @nox.session(python=["3.11"])
 def coverage(session: Session) -> None:
     """Upload coverage data."""
-    install_with_constraints(session, "coverage[toml]", "codecov")
-    session.run("coverage", "xml", "--fail-under=0")
-    session.run("codecov", *session.posargs)
+    args = session.posargs or ["report"]
+    install_with_constraints(session, "coverage[toml]")
+    if not session.posargs and any(Path().glob(".coverage.*")):
+        session.run("coverage", "combine")
+    session.run("coverage", *args)
