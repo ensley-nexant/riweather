@@ -28,7 +28,7 @@ jobs:
           nox --version
 
       - name: Run Nox
-        run: nox
+        run: nox --python=3.10
 
       - name: Build with Poetry
         run: |
