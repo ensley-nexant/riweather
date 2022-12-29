@@ -1,0 +1,42 @@
+name: Release Drafter
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  draft_release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v5.21.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# .github/release-drafter.yml
+categories:
+  - title: ':boom: Breaking Changes'
+    label: 'breaking'
+  - title: ':package: Build System'
+    label: 'build'
+  - title: ':construction_worker: Continuous Integration'
+    label: 'ci'
+  - title: ':books: Documentation'
+    label: 'documentation'
+  - title: ':rocket: Features'
+    label: 'enhancement'
+  - title: ':beetle: Fixes'
+    label: 'bug'
+  - title: ':racehorse: Performance'
+    label: 'performance'
+  - title: ':hammer: Refactoring'
+    label: 'refactoring'
+  - title: ':fire: Removals and Deprecations'
+    label: 'removal'
+  - title: ':lipstick: Style'
+    label: 'style'
+  - title: ':rotating_light: Testing'
+    label: 'testing'
+template: |
+  ## What’s Changed
+
+  $CHANGES
