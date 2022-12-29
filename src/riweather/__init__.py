@@ -3,6 +3,7 @@
 Grab publicly available weather data.
 """
 from importlib.metadata import version, PackageNotFoundError
+from importlib.resources import files
 
 try:
     __version__ = version(__name__)
@@ -14,12 +15,8 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-_dbpath = os.path.join(os.path.expanduser("~"), ".riweather")
-try:
-    os.mkdir(_dbpath)
-except FileExistsError:
-    pass
-metadata_engine = create_engine(f"sqlite+pysqlite:///{_dbpath}/metadata.db")
+_dbpath = files("riweather.resources").joinpath("metadata.db")
+metadata_engine = create_engine(f"sqlite+pysqlite:///{_dbpath}")
 
 from riweather.db import Base
 

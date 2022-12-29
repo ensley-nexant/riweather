@@ -1,6 +1,7 @@
 """Command line interface for riweather."""
 import functools
 import pathlib
+from importlib.resources import files
 
 import click
 import requests
@@ -111,10 +112,8 @@ def rebuild_db(src: pathlib.Path) -> None:
     from riweather.db import Base
     from riweather.db.actions import populate
 
-    dbpath = pathlib.Path.home() / ".riweather" / "metadata.db"
-    # delete and recreate metadata.db if it already exists
-    dbpath.unlink(missing_ok=True)
-    dbpath.touch()
+    # dbpath = pathlib.Path.home() / ".riweather" / "metadata.db"
+    dbpath = files("riweather.resources").joinpath("metadata.db")
 
     # drop and recreate tables before populating
     metadata_engine = create_engine(f"sqlite+pysqlite:///{dbpath}")
