@@ -28,8 +28,7 @@ jobs:
           nox --version
 
       - name: Run Nox
-        run: |
-          nox --python=${{ matrix.python-version }}
+        run: nox
 
       - name: Build with Poetry
         run: |
