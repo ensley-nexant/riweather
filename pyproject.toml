@@ -17,6 +17,12 @@ sqlalchemy = "^1.4.45"
 pyshp = "^2.3.1"
 shapely = "^2.0.0"
 pandas = "^1.5.2"
+pyproj = "^3.4.1"
+matplotlib = {version = "^3.6.2", optional = true}
+folium = {version = "^0.14.0", optional = true}
+
+[tool.poetry.extras]
+plots = ["folium", "matplotlib"]
 
 [tool.poetry.scripts]
 riweather = "riweather.cli:main"
@@ -41,6 +47,12 @@ safety = "^2.3.5"
 flake8-docstrings = "^1.6.0"
 mkdocs = "^1.4.2"
 mkdocs-material = "^8.5.11"
+mknotebooks = "^0.7.1"
+mkdocstrings = {extras = ["python"], version = "^0.19.1"}
+mkdocs-autorefs = "^0.4.1"
+pygments = "^2.13.0"
+jupyter = "^1.0.0"
+mkdocs-click = "^0.8.0"
 
 [tool.pytest.ini_options]
 addopts = [

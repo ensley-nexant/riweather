@@ -58,15 +58,13 @@ def main() -> None:
     "--dst",
     required=True,
     type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
+    help="Directory where the data will be stored.",
 )
 def download_metadata(dst: pathlib.Path) -> None:
     """Download weather station and US geography metadata.
 
     Pulls files from the Internet that are necessary to (re)build the riweather
     metadata database.
-
-    Args:
-        dst: Destination filepath where the files will be locally stored.
     """
     secho_inprog = functools.partial(click.secho, nl=False, fg="yellow")
     secho_complete = functools.partial(click.secho, fg="blue")
@@ -101,12 +99,14 @@ def download_metadata(dst: pathlib.Path) -> None:
     "--src",
     required=True,
     type=click.Path(file_okay=False, writable=True, path_type=pathlib.Path),
+    help="Directory where the data is stored.",
 )
 def rebuild_db(src: pathlib.Path) -> None:
-    """Drop and recreate all tables in the metadata database.
+    r"""Drop and recreate all tables in the metadata database.
 
-    Args:
-        src: Path to the primary source data
+    The database is created in a special folder in the user's home directory:
+    `~/.riweather/metadata.db` on Mac/Linux, `%USERPROFILE%\\.riweather\\metadata.db`
+    on Windows.
     """
     from riweather.db import Base
     from riweather.db.actions import populate
