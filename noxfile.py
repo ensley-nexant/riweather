@@ -87,7 +87,17 @@ def safety(session):
 def docs(session):
     """Build the documentation."""
     args = session.posargs or ["-s"]
-    install_with_constraints(session, "mkdocs", "mkdocs-material")
+    install_with_constraints(
+        session,
+        "mkdocs",
+        "mkdocs-material",
+        "mknotebooks",
+        "mkdocstrings[python]",
+        "mkdocs-autorefs",
+        "pygments",
+        "jupyter",
+        "mkdocs-click",
+    )
     session.run("mkdocs", "build", *args)
 
 
