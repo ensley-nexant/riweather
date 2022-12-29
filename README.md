@@ -33,17 +33,17 @@ Given a latitude and longitude, get a list of weather stations sorted from neare
 Select the top station (or a different station):
 
 ```python
-station = riweather.select_station(station_rank, rank=0)
+>>> station = riweather.select_station(station_rank, rank=0)
 ```
 
 View information about that station:
 
 ```python
-station.name, station.usaf_id
+>>> station.name, station.usaf_id
 ```
 
 And pull weather data from that station for a certain year.
 
 ```python
-station.fetch_temp_data(2022)
+>>> station.fetch_temp_data(2022)
 ```
