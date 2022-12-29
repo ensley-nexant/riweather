@@ -13,7 +13,7 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v3
 
-      - name: Set up Python ${{"{{"}} matrix.python {{"}}"}}
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
@@ -45,7 +45,7 @@ jobs:
 
       - name: Run Nox
         run: |
-          nox --python=${{"{{"}} matrix.python-version {{"}}"}}
+          nox --python=${{ matrix.python-version }}
 
       - name: Upload coverage data
         if: always()
