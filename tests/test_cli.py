@@ -38,7 +38,7 @@ class TestDownloadMetadata:
     def test_creates_files(self, runner):
         """Creates the appropriate files in the correct directory."""
         runner.invoke(cli.main, ["download-metadata", "-d", "."])
-        assert os.listdir(os.getcwd()) == self.true_filenames
+        assert sorted(os.listdir(os.getcwd())) == sorted(self.true_filenames)
 
     def test_gets_data(self, runner):
         """Retrieves the expected data for each of the files."""
