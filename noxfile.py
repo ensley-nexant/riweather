@@ -2,6 +2,7 @@
 import tempfile
 
 import nox
+from nox import Session
 
 nox.options.sessions = "lint", "tests"
 locations = "src", "tests", "./noxfile.py"
@@ -85,3 +86,11 @@ def docs(session):
     args = session.posargs or ["-s"]
     install_with_constraints(session, "mkdocs", "mkdocs-material")
     session.run("mkdocs", "build", *args)
+
+
+@nox.session(python=["3.11"])
+def coverage(session: Session) -> None:
+    """Upload coverage data."""
+    install_with_constraints(session, "coverage[toml]", "codecov")
+    session.run("coverage", "xml", "--fail-under=0")
+    session.run("codecov", *session.posargs)
