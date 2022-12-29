@@ -288,7 +288,9 @@ def zcta_to_lat_lon(zcta: str) -> (float, float):
     return zcta.latitude, zcta.longitude
 
 
-def rank_stations(lat, lon, *, year=None, max_distance_m=None):
+def rank_stations(
+    lat: float, lon: float, *, year: int = None, max_distance_m: int = None
+) -> pd.DataFrame:
     """Rank stations by distance to a point.
 
     Args:
@@ -350,7 +352,7 @@ def rank_stations(lat, lon, *, year=None, max_distance_m=None):
     return data
 
 
-def select_station(ranked_stations, rank=0):
+def select_station(ranked_stations: pd.DataFrame, rank: int = 0) -> Station:
     """Return a Station object out of a ranked set of stations.
 
     Args:

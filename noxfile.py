@@ -83,12 +83,13 @@ def safety(session):
         session.run("safety", "check", f"--file={requirements.name}", "--full-report")
 
 
-@nox.session(python=["3.11"])
+@nox.session(python=["3.11", "3.10"])
 def docs(session):
     """Build the documentation."""
-    args = session.posargs or ["-s"]
+    args = session.posargs
     install_with_constraints(
         session,
+        ".",
         "mkdocs",
         "mkdocs-material",
         "mknotebooks",
@@ -97,11 +98,12 @@ def docs(session):
         "pygments",
         "jupyter",
         "mkdocs-click",
+        "black",
     )
     session.run("mkdocs", "build", *args)
 
 
-@nox.session(python=["3.11"])
+@nox.session(python=["3.11", "3.10"])
 def coverage(session: Session) -> None:
     """Upload coverage data."""
     args = session.posargs or ["report"]
