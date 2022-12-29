@@ -18,7 +18,7 @@ def _get_extent(lat, lon, tlats, tlons, buffer=0.05, max_aspect_ratio=1.5):
     return x_min, x_max, y_min, y_max
 
 
-def _get_zoom_level(distance_m, n_tiles=800):
+def _get_zoom_level(distance_m, n_tiles=600):
     km = distance_m / 1000.0
     zoom_level = int(np.log2(128 * n_tiles / km))
     return zoom_level
