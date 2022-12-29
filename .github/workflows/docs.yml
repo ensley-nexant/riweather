@@ -39,7 +39,7 @@ jobs:
 
       - name: Run Nox Docs
         run: |
-          nox --python="3.10" -s docs
+          nox -s docs
 
       - name: Deploy docs
         run: |
