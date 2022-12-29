@@ -1,12 +1,13 @@
 [tool.poetry]
 name = "riweather"
-version = "0.2.0"
+version = "0.3.0"
 description = "Grab publicly available weather data"
 authors = ["John Ensley <jensley@resource-innovations.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 homepage = "https://github.com/ensley-nexant/riweather"
 repository = "https://github.com/ensley-nexant/riweather"
+documentation = "https://ensley-nexant.github.io/riweather"
 keywords = ["weather", "noaa"]
 
 [tool.poetry.dependencies]
