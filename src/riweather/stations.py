@@ -25,9 +25,7 @@ def _parse_temp(s: bytes) -> float:
     return value
 
 
-class Station:
-    """ISD Station object."""
-
+class Station:  # noqa: D101
     def __init__(self, usaf_id: str, load_metadata_on_init: bool = True):
         """ISD Station object.
 
@@ -49,7 +47,7 @@ class Station:
         else:
             self._station = None
 
-    def _load_metadata(self) -> models.Station:
+    def _load_metadata(self) -> dict:
         """Retrieve station metadata from the local data store.
 
         Returns:
@@ -57,47 +55,58 @@ class Station:
         """
         stmt = select(models.Station).where(models.Station.usaf_id == self.usaf_id)
         with MetadataSession() as session:
-            return session.scalars(stmt).first()
+            station = session.scalars(stmt).first()
+            station_info = {
+                col: getattr(station, col) for col in station.__table__.columns.keys()
+            }
+            station_info["years"] = [f.year for f in station.files]
+
+        return station_info
 
     @property
     def wban_ids(self) -> list[str]:
         """List of valid WBAN (Weather Bureau Army Navy) identifiers."""
-        return self._station.wban_ids.split(",")
+        return self._station.get("wban_ids", "").split(",")
 
     @property
     def recent_wban_id(self) -> str:
         """Most recent WBAN (Weather Bureau Army Navy) identifier."""
-        return self._station.recent_wban_id
+        return self._station.get("recent_wban_id")
 
     @property
     def name(self) -> str:
         """Station name."""
-        return self._station.name
+        return self._station.get("name")
 
     @property
     def icao_code(self) -> str:
         """ICAO airport code."""
-        return self._station.icao_code
+        return self._station.get("icao_code")
 
     @property
     def latitude(self) -> float:
         """Station latitude."""
-        return self._station.latitude
+        return self._station.get("latitude")
 
     @property
     def longitude(self) -> float:
         """Station longitude."""
-        return self._station.longitude
+        return self._station.get("longitude")
 
     @property
     def elevation(self) -> float:
         """Elevation of the station, in meters."""
-        return self._station.elevation
+        return self._station.get("elevation")
 
     @property
     def state(self) -> str:
         """US state in which the station is located."""
-        return self._station.state
+        return self._station.get("state")
+
+    @property
+    def years(self) -> list[int]:
+        """Years for which data exists for the station."""
+        return self._station.get("years", [])
 
     def get_filenames(self, year: int = None) -> list[str]:
         """Construct the names of ISD files corresponding to this station.
@@ -114,7 +123,9 @@ class Station:
             >>> print(s.get_filenames(2022))
             ['/pub/data/noaa/2022/720534-00161-2022.gz']
         """
-        stmt = select(models.File).where(models.File.station_id == self._station.id)
+        stmt = select(models.File).where(
+            models.File.station_id == self._station.get("id")
+        )
         if year is not None:
             stmt = stmt.where(models.File.year == year)
 
@@ -123,9 +134,7 @@ class Station:
         with MetadataSession() as session:
             for row in session.scalars(stmt):
                 filenames.append(
-                    filename_template.format(
-                        self._station.usaf_id, row.wban_id, row.year
-                    )
+                    filename_template.format(self.usaf_id, row.wban_id, row.year)
                 )
 
         return filenames
