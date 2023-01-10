@@ -59,7 +59,7 @@ class Station:  # noqa: D101
             station_info = {
                 col: getattr(station, col) for col in station.__table__.columns.keys()
             }
-            station_info["years"] = [f.year for f in station.files]
+            station_info["years"] = [f.year for f in station.filecounts]
 
         return station_info
 
@@ -123,11 +123,11 @@ class Station:  # noqa: D101
             >>> print(s.get_filenames(2022))
             ['/pub/data/noaa/2022/720534-00161-2022.gz']
         """
-        stmt = select(models.File).where(
-            models.File.station_id == self._station.get("id")
+        stmt = select(models.FileCount).where(
+            models.FileCount.station_id == self._station.get("id")
         )
         if year is not None:
-            stmt = stmt.where(models.File.year == year)
+            stmt = stmt.where(models.FileCount.year == year)
 
         filename_template = "/pub/data/noaa/{2}/{0}-{1}-{2}.gz"
         filenames = []
@@ -318,12 +318,12 @@ def rank_stations(
         select(
             models.Station.usaf_id,
             models.Station.name,
-            models.File.year,
-            models.File.size,
+            models.FileCount.year,
+            models.FileCount.quality,
         )
         .join_from(
             models.Station,
-            models.File,
+            models.FileCount,
         )
         .where(models.Station.usaf_id.in_(station_info.keys()))
     )
@@ -335,11 +335,11 @@ def rank_stations(
                 data[row.usaf_id] = {
                     **station_info[row.usaf_id],
                     "years": [],
-                    "sizes": [],
+                    "quality": [],
                 }
 
             data[row.usaf_id]["years"].append(row.year)
-            data[row.usaf_id]["sizes"].append(row.size)
+            data[row.usaf_id]["quality"].append(row.quality)
 
     data = pd.DataFrame(
         sorted(data.values(), key=operator.itemgetter("distance"))

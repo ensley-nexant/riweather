@@ -117,4 +117,5 @@ def rebuild_db(src: pathlib.Path) -> None:
     metadata_engine = create_engine(f"sqlite+pysqlite:///{dbpath}")
     Base.metadata.drop_all(metadata_engine)
     Base.metadata.create_all(metadata_engine)
+    click.secho("Populating database...", fg="yellow")
     populate(src)

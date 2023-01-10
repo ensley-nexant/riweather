@@ -227,7 +227,88 @@ def assemble_station_metadata(src: str | PathLike[str]) -> dict:
     return h3.to_dict(orient="index")
 
 
-def assemble_file_metadata() -> list[dict]:
+def assemble_file_metadata_from_inventory(
+    src: str | PathLike[str], stations: list[str]
+) -> dict:
+    """Prep NOAA data file information for database insertion.
+
+    Args:
+        src: Folder containing the NOAA metadata file "isd-inventory.csv"
+        stations: List of station IDs
+    """
+    _today = pd.to_datetime(datetime.date.today())
+    src = pathlib.Path(src).resolve()
+    inv: pd.DataFrame = pd.read_csv(
+        src / "isd-inventory.csv", dtype={"USAF": str, "WBAN": str}
+    )
+    # convert column names to lowercase
+    inv.columns = inv.columns.str.lower()
+    # only keep stations that exist in the station metadata, and years >= 2005
+    inv = inv.loc[inv["usaf"].isin(stations) & (inv["year"] >= 2005), :].copy()
+    # pivot wide to long
+    inv_long = inv.melt(
+        id_vars=["usaf", "wban", "year"],
+        var_name="month",
+        value_name="count",
+    ).replace(
+        {
+            "month": {
+                "jan": 1,
+                "feb": 2,
+                "mar": 3,
+                "apr": 4,
+                "may": 5,
+                "jun": 6,
+                "jul": 7,
+                "aug": 8,
+                "sep": 9,
+                "oct": 10,
+                "nov": 11,
+                "dec": 12,
+            }
+        }
+    )
+    # create dt column for year-month
+    inv_long["day"] = 1
+    inv_long["month_start_dt"] = pd.to_datetime(inv_long[["year", "month", "day"]])
+    del inv_long["day"]
+    # only keep year-months on or before the current month
+    inv_long = inv_long.loc[inv_long["month_start_dt"] <= _today, :].copy()
+    # hours in month up to today, if today falls within that month;
+    # otherwise hours in total month
+    inv_long["hours_in_month"] = np.where(
+        (inv_long["year"] == _today.year) & (inv_long["month"] == _today.month),
+        (_today - inv_long["month_start_dt"]).astype("timedelta64[h]"),
+        inv_long["month_start_dt"].dt.days_in_month * 24,
+    )
+    q = inv_long.groupby(["usaf", "wban", "year"])[["count", "hours_in_month"]].agg(
+        count=("count", "sum"),
+        hours_in_year=("hours_in_month", "sum"),
+        n_zero_months=("count", lambda x: x.eq(0).sum()),
+    )
+    # define quality criteria here
+    q["quality"] = pd.Categorical(
+        np.where(
+            (q["count"] >= 0.9 * q["hours_in_year"]) & (q["n_zero_months"] == 0),
+            "high",
+            np.where(
+                (q["count"] >= 0.5 * q["hours_in_year"]) & (q["n_zero_months"] <= 2),
+                "medium",
+                "low",
+            ),
+        ),
+        categories=["low", "medium", "high"],
+        ordered=True,
+    )
+    inv = inv.join(
+        q[["count", "n_zero_months", "quality"]],
+        on=["usaf", "wban", "year"],
+        how="left",
+    )
+    return inv.to_dict(orient="index")
+
+
+def assemble_file_metadata_from_crawl() -> list[dict]:
     """Prep NOAA data file information for database insertion.
 
     Traverses the FTP server and records all data files encountered, so that we can
@@ -290,7 +371,9 @@ def populate(src: str | PathLike[str]) -> None:
     """
     zcta_metadata = assemble_zcta_metadata(src)
     station_metadata = assemble_station_metadata(src)
-    file_metadata = assemble_file_metadata()
+    file_metadata = assemble_file_metadata_from_inventory(
+        src, list(station_metadata.keys())
+    )
 
     zcta_db_objs = [
         models.Zcta(
@@ -303,8 +386,8 @@ def populate(src: str | PathLike[str]) -> None:
         for z in zcta_metadata.values()
     ]
 
-    station_db_objs = [
-        models.Station(
+    station_db_objs = {
+        usaf_id: models.Station(
             usaf_id=usaf_id,
             wban_ids=",".join(s["wban_ids"]),
             recent_wban_id=s["recent_wban_id"],
@@ -316,23 +399,34 @@ def populate(src: str | PathLike[str]) -> None:
             state=s["state"],
         )
         for usaf_id, s in station_metadata.items()
-    ]
+    }
 
-    file_db_objs = []
-    for f in file_metadata:
-        station = next((s for s in station_db_objs if s.usaf_id == f["usaf_id"]), None)
-        if station is not None:
-            file_db_objs.append(
-                models.File(
-                    wban_id=f["wban_id"],
-                    station=station,
-                    year=f["year"],
-                    size=f["size"],
-                )
-            )
+    file_db_objs = [
+        models.FileCount(
+            station=station_db_objs[f["usaf"]],
+            wban_id=f["wban"],
+            year=f["year"],
+            jan=f["jan"],
+            feb=f["feb"],
+            mar=f["mar"],
+            apr=f["apr"],
+            may=f["may"],
+            jun=f["jun"],
+            jul=f["jul"],
+            aug=f["aug"],
+            sep=f["sep"],
+            oct=f["oct"],
+            nov=f["nov"],
+            dec=f["dec"],
+            count=f["count"],
+            n_zero_months=f["n_zero_months"],
+            quality=f["quality"],
+        )
+        for f in file_metadata.values()
+    ]
 
     with MetadataSession() as session:
         session.add_all(zcta_db_objs)
-        session.add_all(station_db_objs)
+        session.add_all(station_db_objs.values())
         session.add_all(file_db_objs)
         session.commit()
