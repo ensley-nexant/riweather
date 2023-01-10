@@ -45,7 +45,7 @@ class Station:  # noqa: D101
         if load_metadata_on_init:
             self._station = self._load_metadata()
         else:
-            self._station = None
+            self._station = {}
 
     def _load_metadata(self) -> dict:
         """Retrieve station metadata from the local data store.
@@ -138,6 +138,49 @@ class Station:  # noqa: D101
                 )
 
         return filenames
+
+    def quality_report(self, year: int = None) -> pd.DataFrame | pd.Series:
+        """Retrieve information on data quality.
+
+        Args:
+            year: Limit the report to information concerning the given year.
+                If `None`, all years are included.
+
+        Returns:
+            Data quality report
+        """
+        stmt = select(models.FileCount).where(
+            models.FileCount.station_id == self._station.get("id")
+        )
+        if year is not None:
+            stmt = stmt.where(models.FileCount.year == year)
+
+        with MetadataSession() as session:
+            results = [
+                {
+                    "usaf_id": r.station.usaf_id,
+                    "wban_id": r.wban_id,
+                    "year": r.year,
+                    "quality": r.quality,
+                    "jan": r.jan,
+                    "feb": r.feb,
+                    "mar": r.mar,
+                    "apr": r.apr,
+                    "may": r.may,
+                    "jun": r.jun,
+                    "jul": r.jul,
+                    "aug": r.aug,
+                    "sep": r.sep,
+                    "oct": r.oct,
+                    "nov": r.nov,
+                    "dec": r.dec,
+                    "count": r.count,
+                    "n_zero_months": r.n_zero_months,
+                }
+                for r in session.scalars(stmt).all()
+            ]
+
+        return pd.DataFrame(results).squeeze()
 
     def fetch_raw_temp_data(self, year: int = None, scale: str = "C") -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
