@@ -40,7 +40,4 @@ jobs:
       - name: Run Nox Docs
         run: |
           nox -s docs
-
-      - name: Deploy docs
-        run: |
           poetry run mkdocs gh-deploy
