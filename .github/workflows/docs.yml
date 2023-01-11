@@ -39,5 +39,4 @@ jobs:
 
       - name: Run Nox Docs
         run: |
-          nox -s docs
-          poetry run mkdocs gh-deploy
+          nox --force-color -s docs-deploy -- --force

@@ -83,7 +83,7 @@ def safety(session):
         session.run("safety", "check", f"--file={requirements.name}", "--full-report")
 
 
-@nox.session(python=["3.11", "3.10"])
+@nox.session(python=["3.11"])
 def docs(session):
     """Build the documentation."""
     args = session.posargs
@@ -101,6 +101,26 @@ def docs(session):
         "black",
     )
     session.run("mkdocs", "build", *args)
+
+
+@nox.session(name="docs-deploy", python=["3.11"])
+def docs_deploy(session):
+    """Deploy the documentation."""
+    args = session.posargs
+    install_with_constraints(
+        session,
+        ".",
+        "mkdocs",
+        "mkdocs-material",
+        "mknotebooks",
+        "mkdocstrings[python]",
+        "mkdocs-autorefs",
+        "pygments",
+        "jupyter",
+        "mkdocs-click",
+        "black",
+    )
+    session.run("mkdocs", "gh-deploy", *args)
 
 
 @nox.session(python=["3.11", "3.10"])
