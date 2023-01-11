@@ -103,20 +103,19 @@ def download_metadata(dst: pathlib.Path) -> None:
     help="Directory where the data is stored.",
 )
 def rebuild_db(src: pathlib.Path) -> None:
-    r"""Drop and recreate all tables in the metadata database.
-
-    The database is created in a special folder in the user's home directory:
-    `~/.riweather/metadata.db` on Mac/Linux, `%USERPROFILE%\\.riweather\\metadata.db`
-    on Windows.
-    """
+    """Drop and recreate all tables in the metadata database."""
     from riweather.db import Base
     from riweather.db.actions import populate
 
-    # dbpath = pathlib.Path.home() / ".riweather" / "metadata.db"
     dbpath = files("riweather.resources").joinpath("metadata.db")
+    click.secho(
+        f"Creating SQLite database at {dbpath}",
+        fg="yellow",
+    )
 
     # drop and recreate tables before populating
     metadata_engine = create_engine(f"sqlite+pysqlite:///{dbpath}")
     Base.metadata.drop_all(metadata_engine)
     Base.metadata.create_all(metadata_engine)
+    click.secho("Populating database...", fg="yellow")
     populate(src)

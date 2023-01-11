@@ -40,18 +40,32 @@ class Station(Base):
     elevation = Column(Float)
     state = Column(String(2))
 
-    files = relationship("File")
+    filecounts = relationship("FileCount")
 
 
-class File(Base):
-    """File database model."""
+class FileCount(Base):
+    """Observation count model."""
 
-    __tablename__ = "file"
+    __tablename__ = "filecount"
 
     id = Column(Integer, primary_key=True)
+    station_id = Column(Integer, ForeignKey("station.id"))
     wban_id = Column(String)
     year = Column(Integer)
-    size = Column(Integer)
+    jan = Column(Integer)
+    feb = Column(Integer)
+    mar = Column(Integer)
+    apr = Column(Integer)
+    may = Column(Integer)
+    jun = Column(Integer)
+    jul = Column(Integer)
+    aug = Column(Integer)
+    sep = Column(Integer)
+    oct = Column(Integer)
+    nov = Column(Integer)
+    dec = Column(Integer)
+    count = Column(Integer)
+    n_zero_months = Column(Integer)
+    quality = Column(String)
 
-    station_id = Column(Integer, ForeignKey("station.id"))
-    station = relationship("Station", back_populates="files")
+    station = relationship("Station", back_populates="filecounts")

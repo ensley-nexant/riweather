@@ -25,9 +25,7 @@ def _parse_temp(s: bytes) -> float:
     return value
 
 
-class Station:
-    """ISD Station object."""
-
+class Station:  # noqa: D101
     def __init__(self, usaf_id: str, load_metadata_on_init: bool = True):
         """ISD Station object.
 
@@ -47,9 +45,9 @@ class Station:
         if load_metadata_on_init:
             self._station = self._load_metadata()
         else:
-            self._station = None
+            self._station = {}
 
-    def _load_metadata(self) -> models.Station:
+    def _load_metadata(self) -> dict:
         """Retrieve station metadata from the local data store.
 
         Returns:
@@ -57,47 +55,58 @@ class Station:
         """
         stmt = select(models.Station).where(models.Station.usaf_id == self.usaf_id)
         with MetadataSession() as session:
-            return session.scalars(stmt).first()
+            station = session.scalars(stmt).first()
+            station_info = {
+                col: getattr(station, col) for col in station.__table__.columns.keys()
+            }
+            station_info["years"] = [f.year for f in station.filecounts]
+
+        return station_info
 
     @property
     def wban_ids(self) -> list[str]:
         """List of valid WBAN (Weather Bureau Army Navy) identifiers."""
-        return self._station.wban_ids.split(",")
+        return self._station.get("wban_ids", "").split(",")
 
     @property
     def recent_wban_id(self) -> str:
         """Most recent WBAN (Weather Bureau Army Navy) identifier."""
-        return self._station.recent_wban_id
+        return self._station.get("recent_wban_id")
 
     @property
     def name(self) -> str:
         """Station name."""
-        return self._station.name
+        return self._station.get("name")
 
     @property
     def icao_code(self) -> str:
         """ICAO airport code."""
-        return self._station.icao_code
+        return self._station.get("icao_code")
 
     @property
     def latitude(self) -> float:
         """Station latitude."""
-        return self._station.latitude
+        return self._station.get("latitude")
 
     @property
     def longitude(self) -> float:
         """Station longitude."""
-        return self._station.longitude
+        return self._station.get("longitude")
 
     @property
     def elevation(self) -> float:
         """Elevation of the station, in meters."""
-        return self._station.elevation
+        return self._station.get("elevation")
 
     @property
     def state(self) -> str:
         """US state in which the station is located."""
-        return self._station.state
+        return self._station.get("state")
+
+    @property
+    def years(self) -> list[int]:
+        """Years for which data exists for the station."""
+        return self._station.get("years", [])
 
     def get_filenames(self, year: int = None) -> list[str]:
         """Construct the names of ISD files corresponding to this station.
@@ -114,21 +123,64 @@ class Station:
             >>> print(s.get_filenames(2022))
             ['/pub/data/noaa/2022/720534-00161-2022.gz']
         """
-        stmt = select(models.File).where(models.File.station_id == self._station.id)
+        stmt = select(models.FileCount).where(
+            models.FileCount.station_id == self._station.get("id")
+        )
         if year is not None:
-            stmt = stmt.where(models.File.year == year)
+            stmt = stmt.where(models.FileCount.year == year)
 
         filename_template = "/pub/data/noaa/{2}/{0}-{1}-{2}.gz"
         filenames = []
         with MetadataSession() as session:
             for row in session.scalars(stmt):
                 filenames.append(
-                    filename_template.format(
-                        self._station.usaf_id, row.wban_id, row.year
-                    )
+                    filename_template.format(self.usaf_id, row.wban_id, row.year)
                 )
 
         return filenames
+
+    def quality_report(self, year: int = None) -> pd.DataFrame | pd.Series:
+        """Retrieve information on data quality.
+
+        Args:
+            year: Limit the report to information concerning the given year.
+                If `None`, all years are included.
+
+        Returns:
+            Data quality report
+        """
+        stmt = select(models.FileCount).where(
+            models.FileCount.station_id == self._station.get("id")
+        )
+        if year is not None:
+            stmt = stmt.where(models.FileCount.year == year)
+
+        with MetadataSession() as session:
+            results = [
+                {
+                    "usaf_id": r.station.usaf_id,
+                    "wban_id": r.wban_id,
+                    "year": r.year,
+                    "quality": r.quality,
+                    "jan": r.jan,
+                    "feb": r.feb,
+                    "mar": r.mar,
+                    "apr": r.apr,
+                    "may": r.may,
+                    "jun": r.jun,
+                    "jul": r.jul,
+                    "aug": r.aug,
+                    "sep": r.sep,
+                    "oct": r.oct,
+                    "nov": r.nov,
+                    "dec": r.dec,
+                    "count": r.count,
+                    "n_zero_months": r.n_zero_months,
+                }
+                for r in session.scalars(stmt).all()
+            ]
+
+        return pd.DataFrame(results).squeeze()
 
     def fetch_raw_temp_data(self, year: int = None, scale: str = "C") -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
@@ -309,12 +361,12 @@ def rank_stations(
         select(
             models.Station.usaf_id,
             models.Station.name,
-            models.File.year,
-            models.File.size,
+            models.FileCount.year,
+            models.FileCount.quality,
         )
         .join_from(
             models.Station,
-            models.File,
+            models.FileCount,
         )
         .where(models.Station.usaf_id.in_(station_info.keys()))
     )
@@ -326,11 +378,11 @@ def rank_stations(
                 data[row.usaf_id] = {
                     **station_info[row.usaf_id],
                     "years": [],
-                    "sizes": [],
+                    "quality": [],
                 }
 
             data[row.usaf_id]["years"].append(row.year)
-            data[row.usaf_id]["sizes"].append(row.size)
+            data[row.usaf_id]["quality"].append(row.quality)
 
     data = pd.DataFrame(
         sorted(data.values(), key=operator.itemgetter("distance"))

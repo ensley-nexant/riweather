@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from riweather.db import Base
-from riweather.db.models import File, Station, Zcta
+from riweather.db.models import FileCount, Station, Zcta
 
 
 @pytest.fixture(scope="module")
@@ -49,13 +49,27 @@ def valid_station():
 
 
 @pytest.fixture(scope="module")
-def valid_file(valid_station):
-    """A sample valid File database object."""
-    file = File(
+def valid_filecount(valid_station):
+    """A sample valid FileCount database object."""
+    file = FileCount(
         wban_id="93121",
-        year=2006,
-        size=316356,
         station=valid_station,
+        year=2006,
+        jan=493,
+        feb=441,
+        mar=518,
+        apr=480,
+        may=482,
+        jun=518,
+        jul=550,
+        aug=509,
+        sep=483,
+        oct=587,
+        nov=702,
+        dec=732,
+        count=6495,
+        n_zero_months=0,
+        quality="medium",
     )
     return file
 
@@ -76,12 +90,14 @@ class TestDatabase:
         )
         assert station == valid_station
 
-    def test_db_add_valid_file(self, session, valid_file):
+    def test_db_add_valid_file(self, session, valid_filecount):
         """A valid file can be inserted."""
-        session.add(valid_file)
+        session.add(valid_filecount)
         session.commit()
-        file = session.query(File).filter_by(wban_id=valid_file.wban_id).first()
-        assert file == valid_file
+        file = (
+            session.query(FileCount).filter_by(wban_id=valid_filecount.wban_id).first()
+        )
+        assert file == valid_filecount
 
     def test_db_add_valid_zcta(self, session, valid_zcta):
         """A valid ZCTA can be inserted."""
