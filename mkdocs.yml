@@ -23,6 +23,7 @@ nav:
   - Home: index.md
   - Installation: install.md
   - Getting Started: getting_started.ipynb
+  - Data Resampling Introduction: data_resampling.ipynb
   - Command Line Interface: cli.md
   - API Reference: reference.md
 markdown_extensions:
