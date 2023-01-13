@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pytz
+from pandas.tseries.frequencies import to_offset
 from sqlalchemy import select
 
 from riweather import MetadataSession
@@ -17,12 +18,178 @@ __all__ = (
     "rank_stations",
     "select_station",
     "Station",
+    "upsample",
+    "rollup_starting",
+    "rollup_ending",
+    "rollup_midpoint",
+    "rollup_instant",
 )
 
 
 def _parse_temp(s: bytes) -> float:
     value = float(s) / 10.0 if s.decode("utf-8") != "+9999" else float("nan")
     return value
+
+
+def upsample(data: pd.Series | pd.DataFrame, period: str = "T"):
+    """Upsample and interpolate time series data.
+
+    Args:
+        data: Time series data with a datetime index
+        period: Period to upsample to. Defaults to `"T"`, which is minute-level
+
+    Returns:
+        Upsampled data
+
+    Examples:
+        >>> import pandas as pd
+        >>> t = pd.Series(
+        ...     [1, 2, 10],
+        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ... )
+        >>> upsample(t, period="T").head()
+        2023-01-01 00:01:00     1.00000
+        2023-01-01 00:02:00     1.03125
+        2023-01-01 00:03:00     1.06250
+        2023-01-01 00:04:00     1.09375
+        2023-01-01 00:05:00     1.12500
+        Freq: T, Length: 65, dtype: float64
+    """
+    ts = (
+        data.resample(period)
+        .mean()
+        .interpolate(method="linear", limit=60, limit_direction="both")
+    )
+    return ts
+
+
+def rollup_starting(
+    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+):
+    """Roll up data, labelled with the period start.
+
+    Args:
+        data: Time series data with a datetime index
+        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        upsample_first: Perform minute-level upsampling prior to calculating
+            the period average.
+
+    Returns:
+        The time series rolled up to the specified period.
+
+    Examples:
+        >>> import pandas as pd
+        >>> t = pd.Series(
+        ...     [1, 2, 10],
+        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ... )
+        >>> rollup_starting(t)
+        2023-01-01 00:00:00    3.207627
+        2023-01-01 01:00:00    9.375000
+        Freq: H, dtype: float64
+    """
+    if upsample_first:
+        data = upsample(data, period="T")
+    ts = data.resample(period, label="left", closed="left").mean()
+    return ts
+
+
+def rollup_ending(
+    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+):
+    """Roll up data, labelled with the period end.
+
+    Args:
+        data: Time series data with a datetime index
+        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        upsample_first: Perform minute-level upsampling prior to calculating
+            the period average.
+
+    Returns:
+        The time series rolled up to the specified period.
+
+    Examples:
+        >>> import pandas as pd
+        >>> t = pd.Series(
+        ...     [1, 2, 10],
+        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ... )
+        >>> rollup_ending(t)
+        2023-01-01 01:00:00    3.3
+        2023-01-01 02:00:00    9.5
+        Freq: H, dtype: float64
+    """
+    if upsample_first:
+        data = upsample(data, period="T")
+    ts = data.resample(period, label="right", closed="right").mean()
+    return ts
+
+
+def rollup_midpoint(
+    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+):
+    """Roll up data, labelled with the period midpoint.
+
+    Args:
+        data: Time series data with a datetime index
+        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        upsample_first: Perform minute-level upsampling prior to calculating
+            the period average.
+
+    Returns:
+        The time series rolled up to the specified period.
+
+    Examples:
+        >>> import pandas as pd
+        >>> t = pd.Series(
+        ...     [1, 2, 10],
+        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ... )
+        >>> rollup_midpoint(t)
+        2023-01-01 00:00:00    1.437500
+        2023-01-01 01:00:00    5.661458
+        Freq: H, dtype: float64
+    """
+    if upsample_first:
+        data = upsample(data, period="T")
+    half_period = to_offset(to_offset(period).delta / 2)
+    ts = (
+        data.shift(freq=half_period)
+        .resample(period, label="left", closed="left")
+        .mean()
+    )
+    return ts
+
+
+def rollup_instant(
+    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+):
+    """Roll up data, labelled with interpolated values.
+
+    Args:
+        data: Time series data with a datetime index
+        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        upsample_first: Perform minute-level upsampling prior to returning
+            a value.
+
+    Returns:
+        The time series aligned to the specified period.
+
+    Examples:
+        >>> import pandas as pd
+        >>> t = pd.Series(
+        ...     [1, 2, 10],
+        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ... )
+        >>> rollup_instant(t)
+        2023-01-01 00:00:00    1.00
+        2023-01-01 01:00:00    8.75
+        Freq: H, dtype: float64
+    """
+    if upsample_first:
+        data = upsample(data, period="T")
+    ts = data.resample(period, label="left", closed="left").first()
+    return ts
 
 
 class Station:  # noqa: D101
@@ -230,7 +397,13 @@ class Station:  # noqa: D101
         return ts
 
     def fetch_temp_data(
-        self, year: int = None, value: int = None, scale: str = "C", period: str = "H"
+        self,
+        year: int = None,
+        value: int = None,
+        scale: str = "C",
+        period: str = "H",
+        rollup: str = "ending",
+        upsample_first: bool = True,
     ) -> pd.DataFrame | pd.Series:
         """Retrieve temperature data from the ISD.
 
@@ -248,6 +421,11 @@ class Station:  # noqa: D101
                 for quarter-hourly data, and so on. See the [Pandas documentation
                 on frequency strings](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects)
                 for more details on possible values.
+            rollup: How to align values to the `period`. Defaults to `"ending"`,
+                meaning that values over the previous time period are averaged.
+            upsample_first: Whether to upsample the data to the minute level prior to
+                resampling. Usually results in more accurate representations of the
+                true weather data.
 
         Returns:
             Either a [DataFrame][pandas.DataFrame] containing both air temperature
@@ -266,14 +444,18 @@ class Station:  # noqa: D101
         elif value not in ("temperature", "dew_point"):
             raise ValueError('Value must be "temperature" or "dew_point"')
 
+        if rollup not in ("starting", "ending", "midpoint", "instant"):
+            raise ValueError("Invalid rollup")
+
         raw_ts = self.fetch_raw_temp_data(year, scale=scale)
-        ts = (
-            raw_ts.resample("min")
-            .mean()
-            .interpolate(method="linear", limit=60, limit_direction="both")
-            .resample(period)
-            .mean()
-        )
+        if rollup == "starting":
+            ts = rollup_starting(raw_ts, period, upsample_first=upsample_first)
+        elif rollup == "ending":
+            ts = rollup_ending(raw_ts, period, upsample_first=upsample_first)
+        elif rollup == "midpoint":
+            ts = rollup_midpoint(raw_ts, period, upsample_first=upsample_first)
+        else:  # rollup == "instant"
+            ts = rollup_instant(raw_ts, period, upsample_first=upsample_first)
 
         if value == "temperature":
             return ts.loc[:, f"temp{scale}"]

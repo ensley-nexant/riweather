@@ -22,5 +22,15 @@ Base.metadata.create_all(metadata_engine)
 MetadataSession = sessionmaker(metadata_engine)
 
 from riweather.connection import NOAAFTPConnection
-from riweather.stations import rank_stations, select_station, Station, zcta_to_lat_lon
+from riweather.stations import (
+    zcta_to_lat_lon,
+    rank_stations,
+    select_station,
+    Station,
+    upsample,
+    rollup_starting,
+    rollup_ending,
+    rollup_midpoint,
+    rollup_instant,
+)
 from riweather.viz import plot_stations
