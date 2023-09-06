@@ -33,7 +33,7 @@ def _cli_download_census(
     file_root = url.split("/")[-1]
     outloc = dst / file_root
 
-    r = requests.get(url, stream=True)
+    r = requests.get(url, stream=True, timeout=30)
     n_chunks = int(int(r.headers.get("Content-Length", 0)) / chunk_size) or None
 
     with open(outloc, "wb") as fd:
