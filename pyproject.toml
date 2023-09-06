@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "riweather"
-version = "0.4.0"
+version = "0.4.1"
 description = "Grab publicly available weather data"
 authors = ["John Ensley <jensley@resource-innovations.com>"]
 license = "Apache-2.0"
