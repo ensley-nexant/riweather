@@ -399,7 +399,7 @@ class Station:  # noqa: D101
     def fetch_temp_data(
         self,
         year: int = None,
-        value: int = None,
+        value: str = None,
         scale: str = "C",
         period: str = "H",
         rollup: str = "ending",
