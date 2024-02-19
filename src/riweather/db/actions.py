@@ -278,7 +278,7 @@ def assemble_file_metadata_from_inventory(
     # otherwise hours in total month
     inv_long["hours_in_month"] = np.where(
         (inv_long["year"] == _today.year) & (inv_long["month"] == _today.month),
-        (_today - inv_long["month_start_dt"]).astype("timedelta64[h]"),
+        (_today - inv_long["month_start_dt"]) / pd.Timedelta(hours=1),
         inv_long["month_start_dt"].dt.days_in_month * 24,
     )
     q = inv_long.groupby(["usaf", "wban", "year"])[["count", "hours_in_month"]].agg(
