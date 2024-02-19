@@ -31,12 +31,12 @@ def _parse_temp(s: bytes) -> float:
     return value
 
 
-def upsample(data: pd.Series | pd.DataFrame, period: str = "T"):
+def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
     """Upsample and interpolate time series data.
 
     Args:
         data: Time series data with a datetime index
-        period: Period to upsample to. Defaults to `"T"`, which is minute-level
+        period: Period to upsample to. Defaults to `"min"`, which is minute-level
 
     Returns:
         Upsampled data
@@ -45,9 +45,13 @@ def upsample(data: pd.Series | pd.DataFrame, period: str = "T"):
         >>> import pandas as pd
         >>> t = pd.Series(
         ...     [1, 2, 10],
-        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ...     index=pd.date_range(
+        ...         "2023-01-01 00:01",
+        ...         "2023-01-01 01:05",
+        ...         freq="32min",
+        ...     ),
         ... )
-        >>> upsample(t, period="T").head()
+        >>> upsample(t, period="min").head()
         2023-01-01 00:01:00     1.00000
         2023-01-01 00:02:00     1.03125
         2023-01-01 00:03:00     1.06250
@@ -81,7 +85,11 @@ def rollup_starting(
         >>> import pandas as pd
         >>> t = pd.Series(
         ...     [1, 2, 10],
-        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ...     index=pd.date_range(
+        ...         "2023-01-01 00:01",
+        ...         "2023-01-01 01:05",
+        ...         freq="32min",
+        ...     ),
         ... )
         >>> rollup_starting(t)
         2023-01-01 00:00:00    3.207627
@@ -89,7 +97,7 @@ def rollup_starting(
         Freq: H, dtype: float64
     """
     if upsample_first:
-        data = upsample(data, period="T")
+        data = upsample(data, period="min")
     ts = data.resample(period, label="left", closed="left").mean()
     return ts
 
@@ -112,7 +120,11 @@ def rollup_ending(
         >>> import pandas as pd
         >>> t = pd.Series(
         ...     [1, 2, 10],
-        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ...     index=pd.date_range(
+        ...         "2023-01-01 00:01",
+        ...         "2023-01-01 01:05",
+        ...         freq="32min",
+        ...     ),
         ... )
         >>> rollup_ending(t)
         2023-01-01 01:00:00    3.3
@@ -120,19 +132,19 @@ def rollup_ending(
         Freq: H, dtype: float64
     """
     if upsample_first:
-        data = upsample(data, period="T")
+        data = upsample(data, period="min")
     ts = data.resample(period, label="right", closed="right").mean()
     return ts
 
 
 def rollup_midpoint(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with the period midpoint.
 
     Args:
         data: Time series data with a datetime index
-        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        period: Period to resample to. Defaults to `"h"`, which is hourly.
         upsample_first: Perform minute-level upsampling prior to calculating
             the period average.
 
@@ -143,7 +155,11 @@ def rollup_midpoint(
         >>> import pandas as pd
         >>> t = pd.Series(
         ...     [1, 2, 10],
-        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ...     index=pd.date_range(
+        ...         "2023-01-01 00:01",
+        ...         "2023-01-01 01:05",
+        ...         freq="32min",
+        ...     ),
         ... )
         >>> rollup_midpoint(t)
         2023-01-01 00:00:00    1.437500
@@ -151,7 +167,7 @@ def rollup_midpoint(
         Freq: H, dtype: float64
     """
     if upsample_first:
-        data = upsample(data, period="T")
+        data = upsample(data, period="min")
     half_period = to_offset(to_offset(period).delta / 2)
     ts = (
         data.shift(freq=half_period)
@@ -162,7 +178,7 @@ def rollup_midpoint(
 
 
 def rollup_instant(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with interpolated values.
 
@@ -179,7 +195,11 @@ def rollup_instant(
         >>> import pandas as pd
         >>> t = pd.Series(
         ...     [1, 2, 10],
-        ...     index=pd.date_range("2023-01-01 00:01", "2023-01-01 01:05", freq="32T"),
+        ...     index=pd.date_range(
+        ...         "2023-01-01 00:01",
+        ...         "2023-01-01 01:05",
+        ...         freq="32min",
+        ...     ),
         ... )
         >>> rollup_instant(t)
         2023-01-01 00:00:00    1.00
@@ -187,7 +207,7 @@ def rollup_instant(
         Freq: H, dtype: float64
     """
     if upsample_first:
-        data = upsample(data, period="T")
+        data = upsample(data, period="min")
     ts = data.resample(period, label="left", closed="left").first()
     return ts
 
@@ -349,11 +369,13 @@ class Station:  # noqa: D101
 
         return pd.DataFrame(results).squeeze()
 
-    def fetch_raw_temp_data(self, year: int = None, scale: str = "C") -> pd.DataFrame:
+    def fetch_raw_temp_data(
+        self, year: int | list[int] | None = None, scale: str = "C"
+    ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
 
         Args:
-            year: Returned data will be limited to the year specified. If
+            year: Returned data will be limited to the year(s) specified. If
                 `None`, data for all years is returned.
             scale: Return the temperature in Celsius (`"C"`, the default) or
                 Fahrenheit (`"F"`).
