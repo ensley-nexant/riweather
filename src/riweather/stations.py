@@ -10,7 +10,7 @@ from pandas.tseries.frequencies import to_offset
 from sqlalchemy import select
 
 from riweather import MetadataSession
-from riweather.connection import NOAAFTPConnection
+from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
 
 __all__ = (
@@ -370,7 +370,10 @@ class Station:  # noqa: D101
         return pd.DataFrame(results).squeeze()
 
     def fetch_raw_temp_data(
-        self, year: int | list[int] | None = None, scale: str = "C"
+        self,
+        year: int | list[int] | None = None,
+        scale: str = "C",
+        use_http: bool = False,
     ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
 
@@ -379,6 +382,8 @@ class Station:  # noqa: D101
                 `None`, data for all years is returned.
             scale: Return the temperature in Celsius (`"C"`, the default) or
                 Fahrenheit (`"F"`).
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set
+                this to ``True`` if you are running into issues with FTP.
 
         Returns:
             A [DataFrame][pandas.DataFrame], indexed on the timestamp, with two columns:
@@ -393,11 +398,12 @@ class Station:  # noqa: D101
         """
         data = []
         filenames = self.get_filenames(year)
+        connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
 
         if scale not in ("C", "F"):
             raise ValueError('Scale must be "C" (Celsius) or "F" (Fahrenheit).')
 
-        with NOAAFTPConnection() as conn:
+        with connector() as conn:
             for filename in filenames:
                 datastream = conn.read_file_as_bytes(filename)
                 for line in datastream.readlines():
