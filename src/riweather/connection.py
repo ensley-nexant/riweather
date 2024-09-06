@@ -112,6 +112,7 @@ class NOAAHTTPConnectionException(Exception):
 
 class NOAAHTTPConnection:
     """Connector to NOAA's data server."""
+
     _host = "https://www.ncei.noaa.gov"
 
     def __init__(self) -> None:
@@ -126,11 +127,13 @@ class NOAAHTTPConnection:
         """Close the HTTP connection gracefully."""
         pass
 
-    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO | gzip.GzipFile:
+    def read_file_as_bytes(
+        self, filename: str | os.PathLike
+    ) -> typing.IO | gzip.GzipFile:
         """Read a file off of the server and into a byte stream."""
         stream = BytesIO()
         try:
-            r = requests.get(f"{self.base_url}/{filename}", stream=True)
+            r = requests.get(f"{self.base_url}/{filename}", stream=True, timeout=15)
             stream.write(r.content)
             stream.seek(0)
         except requests.exceptions.RequestException as e:
