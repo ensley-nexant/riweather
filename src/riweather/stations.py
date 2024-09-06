@@ -426,12 +426,13 @@ class Station:  # noqa: D101
 
     def fetch_temp_data(
         self,
-        year: int = None,
-        value: str = None,
+        year: int | list[int] | None = None,
+        value: str | None = None,
         scale: str = "C",
         period: str = "H",
         rollup: str = "ending",
         upsample_first: bool = True,
+        use_http: bool = False,
     ) -> pd.DataFrame | pd.Series:
         """Retrieve temperature data from the ISD.
 
@@ -454,6 +455,8 @@ class Station:  # noqa: D101
             upsample_first: Whether to upsample the data to the minute level prior to
                 resampling. Usually results in more accurate representations of the
                 true weather data.
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set
+                this to ``True`` if you are running into issues with FTP.
 
         Returns:
             Either a [DataFrame][pandas.DataFrame] containing both air temperature
@@ -475,7 +478,7 @@ class Station:  # noqa: D101
         if rollup not in ("starting", "ending", "midpoint", "instant"):
             raise ValueError("Invalid rollup")
 
-        raw_ts = self.fetch_raw_temp_data(year, scale=scale)
+        raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
         if rollup == "starting":
             ts = rollup_starting(raw_ts, period, upsample_first=upsample_first)
         elif rollup == "ending":
