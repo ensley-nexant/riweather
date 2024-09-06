@@ -177,7 +177,7 @@ def assemble_station_metadata(src: str | PathLike[str]) -> dict:
     for col in ["LAT", "LON", "ELEV(M)"]:
         # strip out "+" sign preceding value and convert to float
         history[col] = (
-            history[col].str.removeprefix("+").astype(float).replace(0, np.NaN)
+            history[col].str.removeprefix("+").astype(float).replace(0, np.nan)
         )
 
     # h2 contains the most recent row for each ID

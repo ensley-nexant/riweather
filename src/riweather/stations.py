@@ -10,7 +10,7 @@ from pandas.tseries.frequencies import to_offset
 from sqlalchemy import select
 
 from riweather import MetadataSession
-from riweather.connection import NOAAFTPConnection
+from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
 
 __all__ = (
@@ -68,7 +68,7 @@ def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
 
 
 def rollup_starting(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with the period start.
 
@@ -103,7 +103,7 @@ def rollup_starting(
 
 
 def rollup_ending(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with the period end.
 
@@ -370,7 +370,10 @@ class Station:  # noqa: D101
         return pd.DataFrame(results).squeeze()
 
     def fetch_raw_temp_data(
-        self, year: int | list[int] | None = None, scale: str = "C"
+        self,
+        year: int | list[int] | None = None,
+        scale: str = "C",
+        use_http: bool = False,
     ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
 
@@ -379,6 +382,8 @@ class Station:  # noqa: D101
                 `None`, data for all years is returned.
             scale: Return the temperature in Celsius (`"C"`, the default) or
                 Fahrenheit (`"F"`).
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set
+                this to ``True`` if you are running into issues with FTP.
 
         Returns:
             A [DataFrame][pandas.DataFrame], indexed on the timestamp, with two columns:
@@ -393,11 +398,12 @@ class Station:  # noqa: D101
         """
         data = []
         filenames = self.get_filenames(year)
+        connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
 
         if scale not in ("C", "F"):
             raise ValueError('Scale must be "C" (Celsius) or "F" (Fahrenheit).')
 
-        with NOAAFTPConnection() as conn:
+        with connector() as conn:
             for filename in filenames:
                 datastream = conn.read_file_as_bytes(filename)
                 for line in datastream.readlines():
@@ -420,12 +426,13 @@ class Station:  # noqa: D101
 
     def fetch_temp_data(
         self,
-        year: int = None,
-        value: str = None,
+        year: int | list[int] | None = None,
+        value: str | None = None,
         scale: str = "C",
         period: str = "H",
         rollup: str = "ending",
         upsample_first: bool = True,
+        use_http: bool = False,
     ) -> pd.DataFrame | pd.Series:
         """Retrieve temperature data from the ISD.
 
@@ -448,6 +455,8 @@ class Station:  # noqa: D101
             upsample_first: Whether to upsample the data to the minute level prior to
                 resampling. Usually results in more accurate representations of the
                 true weather data.
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set
+                this to ``True`` if you are running into issues with FTP.
 
         Returns:
             Either a [DataFrame][pandas.DataFrame] containing both air temperature
@@ -469,7 +478,7 @@ class Station:  # noqa: D101
         if rollup not in ("starting", "ending", "midpoint", "instant"):
             raise ValueError("Invalid rollup")
 
-        raw_ts = self.fetch_raw_temp_data(year, scale=scale)
+        raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
         if rollup == "starting":
             ts = rollup_starting(raw_ts, period, upsample_first=upsample_first)
         elif rollup == "ending":

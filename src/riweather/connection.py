@@ -5,6 +5,8 @@ import os
 import typing
 from io import BytesIO
 
+import requests
+
 from riweather import utils
 
 
@@ -95,6 +97,47 @@ class NOAAFTPConnection:
             stream.seek(0)
         except ftplib.all_errors as e:
             raise NOAAFTPConnectionException(e) from e
+
+        if utils.is_compressed(filename):
+            return gzip.open(stream, "rb")
+        else:
+            return stream
+
+
+class NOAAHTTPConnectionException(Exception):
+    """Exception for bad HTTP connections."""
+
+    pass
+
+
+class NOAAHTTPConnection:
+    """Connector to NOAA's data server."""
+
+    _host = "https://www.ncei.noaa.gov"
+
+    def __init__(self) -> None:
+        """Initialize the HTTP connection object."""
+        self.base_url = self._host
+
+    def __enter__(self) -> "NOAAHTTPConnection":
+        """Connect to the HTTP server."""
+        return self
+
+    def __exit__(self, *args) -> None:
+        """Close the HTTP connection gracefully."""
+        pass
+
+    def read_file_as_bytes(
+        self, filename: str | os.PathLike
+    ) -> typing.IO | gzip.GzipFile:
+        """Read a file off of the server and into a byte stream."""
+        stream = BytesIO()
+        try:
+            r = requests.get(f"{self.base_url}/{filename}", stream=True, timeout=15)
+            stream.write(r.content)
+            stream.seek(0)
+        except requests.exceptions.RequestException as e:
+            raise NOAAHTTPConnectionException(e) from e
 
         if utils.is_compressed(filename):
             return gzip.open(stream, "rb")
