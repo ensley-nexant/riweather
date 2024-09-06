@@ -68,7 +68,7 @@ def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
 
 
 def rollup_starting(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with the period start.
 
@@ -103,7 +103,7 @@ def rollup_starting(
 
 
 def rollup_ending(
-    data: pd.Series | pd.DataFrame, period: str = "H", upsample_first: bool = True
+    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
 ):
     """Roll up data, labelled with the period end.
 
