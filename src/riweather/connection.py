@@ -1,4 +1,5 @@
 """External connection objects."""
+
 import ftplib
 import gzip
 import os
@@ -10,10 +11,12 @@ import requests
 from riweather import utils
 
 
-class NOAAFTPConnectionException(Exception):
+class NOAAFTPConnectionError(Exception):
     """Exception for bad FTP connections."""
 
-    pass
+
+class NOAAHTTPConnectionError(Exception):
+    """Exception for bad HTTP connections."""
 
 
 class NOAAFTPConnection:
@@ -31,10 +34,9 @@ class NOAAFTPConnection:
         >>> with NOAAFTPConnection() as conn:
         ...     welcome = conn.ftp.getwelcome()  # see docs for ftplib.FTP
         ...     contents = conn.read_file_as_bytes("/pub/data/noaa/isd-history.txt")
-        ...
         >>> "You are accessing a U.S. Government information system" in welcome
         True
-        >>> contents.read(10)  # connection is closed outside of the with block
+        >>> contents.read(10)  # connection is closed outside the with block
         b'Integrated'
     """
 
@@ -55,9 +57,8 @@ class NOAAFTPConnection:
             ftp.login()
             self.ftp = ftp
         except OSError as e:
-            raise NOAAFTPConnectionException(
-                f"Could not connect to the host: {self._host}."
-            ) from e
+            msg = f"Could not connect to the host: {self._host}."
+            raise NOAAFTPConnectionError(msg) from e
         return self
 
     def __exit__(self, *args) -> None:
@@ -69,14 +70,13 @@ class NOAAFTPConnection:
         try:
             self.ftp.quit()
         except ftplib.all_errors as e:
-            print(e)
             self.ftp.close()
+            msg = "Error closing the connection."
+            raise NOAAFTPConnectionError(msg) from e
 
         self.ftp = None
 
-    def read_file_as_bytes(
-        self, filename: str | os.PathLike
-    ) -> typing.IO | gzip.GzipFile:
+    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO | gzip.GzipFile:
         """Read a file off of the server and into a byte stream.
 
         Args:
@@ -88,26 +88,19 @@ class NOAAFTPConnection:
                 decompressed automatically using [gzip][].
         """
         if self.ftp is None:
-            raise NOAAFTPConnectionException(
-                "FTP connection could not be established."
-            ) from None
+            msg = "FTP connection could not be established."
+            raise NOAAFTPConnectionError(msg) from None
         try:
             stream = BytesIO()
-            self.ftp.retrbinary("RETR {}".format(filename), stream.write)
+            self.ftp.retrbinary(f"RETR {filename}", stream.write)
             stream.seek(0)
         except ftplib.all_errors as e:
-            raise NOAAFTPConnectionException(e) from e
+            raise NOAAFTPConnectionError(e) from e
 
         if utils.is_compressed(filename):
             return gzip.open(stream, "rb")
-        else:
-            return stream
 
-
-class NOAAHTTPConnectionException(Exception):
-    """Exception for bad HTTP connections."""
-
-    pass
+        return stream
 
 
 class NOAAHTTPConnection:
@@ -125,11 +118,8 @@ class NOAAHTTPConnection:
 
     def __exit__(self, *args) -> None:
         """Close the HTTP connection gracefully."""
-        pass
 
-    def read_file_as_bytes(
-        self, filename: str | os.PathLike
-    ) -> typing.IO | gzip.GzipFile:
+    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO | gzip.GzipFile:
         """Read a file off of the server and into a byte stream."""
         stream = BytesIO()
         try:
@@ -137,9 +127,9 @@ class NOAAHTTPConnection:
             stream.write(r.content)
             stream.seek(0)
         except requests.exceptions.RequestException as e:
-            raise NOAAHTTPConnectionException(e) from e
+            raise NOAAHTTPConnectionError(e) from e
 
         if utils.is_compressed(filename):
             return gzip.open(stream, "rb")
-        else:
-            return stream
+
+        return stream

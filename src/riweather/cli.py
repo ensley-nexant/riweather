@@ -1,4 +1,5 @@
 """Command line interface for riweather."""
+
 import functools
 import pathlib
 from importlib.resources import files
@@ -7,7 +8,7 @@ import click
 import requests
 from sqlalchemy import create_engine
 
-from . import __version__, connection, utils
+from riweather import __version__, connection, utils
 
 
 def _cli_download_metadata(filename: str, dst: pathlib.Path) -> pathlib.Path:
@@ -26,9 +27,7 @@ def _cli_download_metadata(filename: str, dst: pathlib.Path) -> pathlib.Path:
     return outloc
 
 
-def _cli_download_census(
-    url: str, dst: pathlib.Path, chunk_size: int = 1024
-) -> pathlib.Path:
+def _cli_download_census(url: str, dst: pathlib.Path, chunk_size: int = 1024) -> pathlib.Path:
     """Download metadata from the US Census."""
     file_root = url.split("/")[-1]
     outloc = dst / file_root
@@ -36,12 +35,9 @@ def _cli_download_census(
     r = requests.get(url, stream=True, timeout=30)
     n_chunks = int(int(r.headers.get("Content-Length", 0)) / chunk_size) or None
 
-    with open(outloc, "wb") as fd:
-        with click.progressbar(
-            r.iter_content(chunk_size=chunk_size), length=n_chunks
-        ) as bar:
-            for chunk in bar:
-                fd.write(chunk)
+    with open(outloc, "wb") as fd, click.progressbar(r.iter_content(chunk_size=chunk_size), length=n_chunks) as bar:
+        for chunk in bar:
+            fd.write(chunk)
 
     return outloc
 
@@ -50,7 +46,6 @@ def _cli_download_census(
 @click.version_option(version=__version__)
 def main() -> None:
     """Riweather makes grabbing weather data easier."""
-    pass
 
 
 @main.command()
@@ -74,24 +69,22 @@ def download_metadata(dst: pathlib.Path) -> None:
 
     secho_inprog("Downloading NCEI station metadata...")
     outloc = _cli_download_metadata("/pub/data/noaa/isd-history.csv", dst)
-    secho_complete(" ---> {}".format(outloc))
+    secho_complete(f" ---> {outloc}")
 
     secho_inprog("Downloading NCEI station data quality report...")
     outloc = _cli_download_metadata("/pub/data/noaa/isd-inventory.csv.z", dst)
-    secho_complete(" ---> {}".format(outloc))
+    secho_complete(f" ---> {outloc}")
 
     secho_inprog("Downloading US Census ZCTAs...", nl=True)
     outloc = _cli_download_census(
         "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_zcta520_500k.zip",
         dst,
     )
-    secho_complete(" ---> {}".format(outloc))
+    secho_complete(f" ---> {outloc}")
 
     secho_inprog("Downloading US Census counties...", nl=True)
-    outloc = _cli_download_census(
-        "https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_500k.zip", dst
-    )
-    secho_complete(" ---> {}".format(outloc))
+    outloc = _cli_download_census("https://www2.census.gov/geo/tiger/GENZ2020/shp/cb_2020_us_county_500k.zip", dst)
+    secho_complete(f" ---> {outloc}")
 
 
 @main.command()

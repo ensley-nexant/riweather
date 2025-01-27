@@ -1,4 +1,5 @@
 """Metadata database models."""
+
 from sqlalchemy import Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -19,9 +20,7 @@ class Zcta(Base):
 
     def __repr__(self):
         """Pretty print ZCTA."""
-        return "Zcta(id={0}, zip={1}, latitude={2}, longitude={3}, state={4})".format(
-            self.id, self.zip, self.latitude, self.longitude, self.state
-        )
+        return f"Zcta(id={self.id}, zip={self.zip}, latitude={self.latitude}, longitude={self.longitude}, state={self.state})"
 
 
 class Station(Base):

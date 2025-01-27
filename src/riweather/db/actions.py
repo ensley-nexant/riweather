@@ -1,9 +1,10 @@
 """Management actions on the metadata database."""
+
 import datetime
 import pathlib
 import zipfile
+from collections.abc import Generator
 from os import PathLike
-from typing import Generator
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,8 @@ import shapely.geometry
 from riweather import MetadataSession
 from riweather.connection import NOAAFTPConnection, NOAAFTPConnectionException
 from riweather.db import models
+
+_MIN_YEAR = 2005
 
 
 def open_zipped_shapefile(src: str | PathLike[str]) -> shapefile.Reader:
@@ -31,22 +34,21 @@ def open_zipped_shapefile(src: str | PathLike[str]) -> shapefile.Reader:
         ValueError: No shapefiles, or multiple shapefiles, found in the archive
     """
     with zipfile.ZipFile(pathlib.Path(src).resolve(), "r") as archive:
-        shapefiles = [
-            pathlib.Path(name).stem
-            for name in archive.namelist()
-            if name.endswith(".shp")
-        ]
+        shapefiles = [pathlib.Path(name).stem for name in archive.namelist() if name.endswith(".shp")]
         if len(shapefiles) == 0:
-            raise ValueError("No shapefiles found in archive")
-        elif len(shapefiles) == 1:
+            msg = "No shapefiles found in archive"
+            raise ValueError(msg)
+
+        if len(shapefiles) == 1:
             sf = shapefiles[0]
         else:
-            raise ValueError("Multiple shapefiles found in archive")
+            msg = "Multiple shapefiles found in archive"
+            raise ValueError(msg)
 
-        shp = archive.open(".".join([sf, "shp"]))
-        dbf = archive.open(".".join([sf, "dbf"]))
+        shp = archive.open(f"{sf}.shp")
+        dbf = archive.open(f"{sf}.dbf")
         try:
-            shx = archive.open(".".join([sf, "shx"]))
+            shx = archive.open(f"{sf}.shx")
         except ValueError:
             shx = None
 
@@ -67,7 +69,9 @@ def iterate_zipped_shapefile(src: str | PathLike[str]) -> Generator:
         record: A dictionary of data records associated with `shape`
 
     Examples:
-        >>> for shape, record in iterate_zipped_shapefile("path/to/shapefile.zip"):  # doctest: +SKIP  # noqa
+        >>> for shape, record in iterate_zipped_shapefile(
+        ...     "path/to/shapefile.zip"
+        ... ):  # doctest: +SKIP  # noqa
         ...     print(shape)
         ...     print(record)
     POLYGON ((...))
@@ -100,9 +104,7 @@ def _map_zcta_to_state(zcta_centroid, county_metadata) -> dict:
         The dictionary in `county_metadata` corresponding to the matching county.
             If no match was found, the dictionary will be empty.
     """
-    polygon_containment = filter(
-        lambda x: zcta_centroid.within(x["polygon"]), county_metadata.values()
-    )
+    polygon_containment = filter(lambda x: zcta_centroid.within(x["polygon"]), county_metadata.values())
     hit = next(polygon_containment, None)
 
     if hit is None:
@@ -170,22 +172,16 @@ def assemble_station_metadata(src: str | PathLike[str]) -> dict:
         A dictionary of dictionaries, keyed by 6-digit USAF ID
     """
     src = pathlib.Path(src).resolve()
-    history = pd.read_csv(
-        src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"]
-    )
+    history = pd.read_csv(src / "isd-history.csv", dtype=str, parse_dates=["BEGIN", "END"])
 
     for col in ["LAT", "LON", "ELEV(M)"]:
         # strip out "+" sign preceding value and convert to float
-        history[col] = (
-            history[col].str.removeprefix("+").astype(float).replace(0, np.nan)
-        )
+        history[col] = history[col].str.removeprefix("+").astype(float).replace(0, np.nan)
 
     # h2 contains the most recent row for each ID
     h2 = history.loc[history.groupby("USAF")["END"].idxmax(), :]
     # collapse all old WBAN IDs into a single list entry per row
-    h2 = h2.join(
-        history.groupby("USAF")["WBAN"].apply(list).rename("wban_ids"), on="USAF"
-    )
+    h2 = h2.join(history.groupby("USAF")["WBAN"].apply(list).rename("wban_ids"), on="USAF")
 
     # criteria for keeping a station:
     #   - USAF ID not equal to 999999
@@ -193,10 +189,7 @@ def assemble_station_metadata(src: str | PathLike[str]) -> dict:
     #   - latitude and longitude are not missing
     h3 = (
         h2.loc[
-            (h2["USAF"] != "999999")
-            & (h2["CTRY"] == "US")
-            & h2["LAT"].notnull()
-            & h2["LON"].notnull(),
+            (h2["USAF"] != "999999") & (h2["CTRY"] == "US") & h2["LAT"].notnull() & h2["LON"].notnull(),
             [
                 "USAF",
                 "wban_ids",
@@ -227,24 +220,20 @@ def assemble_station_metadata(src: str | PathLike[str]) -> dict:
     return h3.to_dict(orient="index")
 
 
-def assemble_file_metadata_from_inventory(
-    src: str | PathLike[str], stations: list[str]
-) -> dict:
+def assemble_file_metadata_from_inventory(src: str | PathLike[str], stations: list[str]) -> dict:
     """Prep NOAA data file information for database insertion.
 
     Args:
         src: Folder containing the NOAA metadata file "isd-inventory.csv"
         stations: List of station IDs
     """
-    _today = pd.to_datetime(datetime.date.today())
+    _today = pd.to_datetime(datetime.datetime.now(tz=datetime.timezone.utc).date())
     src = pathlib.Path(src).resolve()
-    inv: pd.DataFrame = pd.read_csv(
-        src / "isd-inventory.csv", dtype={"USAF": str, "WBAN": str}
-    )
+    inv: pd.DataFrame = pd.read_csv(src / "isd-inventory.csv", dtype={"USAF": str, "WBAN": str})
     # convert column names to lowercase
     inv.columns = inv.columns.str.lower()
     # only keep stations that exist in the station metadata, and years >= 2005
-    inv = inv.loc[inv["usaf"].isin(stations) & (inv["year"] >= 2005), :].copy()
+    inv = inv.loc[inv["usaf"].isin(stations) & (inv["year"] >= _MIN_YEAR), :].copy()
     # pivot wide to long
     inv_long = inv.melt(
         id_vars=["usaf", "wban", "year"],
@@ -287,12 +276,13 @@ def assemble_file_metadata_from_inventory(
         n_zero_months=("count", lambda x: x.eq(0).sum()),
     )
     # define quality criteria here
+    num_min_zero_months = 2
     q["quality"] = pd.Categorical(
         np.where(
             (q["count"] >= 0.9 * q["hours_in_year"]) & (q["n_zero_months"] == 0),
             "high",
             np.where(
-                (q["count"] >= 0.5 * q["hours_in_year"]) & (q["n_zero_months"] <= 2),
+                (q["count"] >= 0.5 * q["hours_in_year"]) & (q["n_zero_months"] <= num_min_zero_months),
                 "medium",
                 "low",
             ),
@@ -338,17 +328,16 @@ def assemble_file_metadata_from_crawl() -> list[dict]:
     file_metadata = []
     with NOAAFTPConnection() as conn:
         if conn.ftp is None:
-            raise NOAAFTPConnectionException(
-                "FTP connection could not be established."
-            ) from None
-        for year in range(2006, datetime.date.today().year + 1):
-            print(year)
+            msg = "FTP connection could not be established."
+            raise NOAAFTPConnectionException(msg) from None
+
+        for year in range(_MIN_YEAR + 1, datetime.datetime.now(tz=datetime.timezone.utc).year + 1):
             files = conn.ftp.mlsd(f"pub/data/noaa/{year}", ["size", "type"])
             for name, facts in files:
                 if facts.get("type", "") == "file":
                     name_parts = name.split(".")[0].split("-")
                     size = int(facts.get("size", 0))
-                    if len(name_parts) == 3 and size > 0:
+                    if len(name_parts) == 3 and size > 0:  # noqa: PLR2004
                         file_metadata.append(
                             {
                                 "usaf_id": name_parts[0],
@@ -371,9 +360,7 @@ def populate(src: str | PathLike[str]) -> None:
     """
     zcta_metadata = assemble_zcta_metadata(src)
     station_metadata = assemble_station_metadata(src)
-    file_metadata = assemble_file_metadata_from_inventory(
-        src, list(station_metadata.keys())
-    )
+    file_metadata = assemble_file_metadata_from_inventory(src, list(station_metadata.keys()))
 
     zcta_db_objs = [
         models.Zcta(

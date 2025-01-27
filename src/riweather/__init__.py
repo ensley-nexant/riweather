@@ -2,7 +2,8 @@
 
 Grab publicly available weather data.
 """
-from importlib.metadata import version, PackageNotFoundError
+
+from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files
 
 try:
@@ -23,14 +24,14 @@ MetadataSession = sessionmaker(metadata_engine)
 
 from riweather.connection import NOAAFTPConnection
 from riweather.stations import (
-    zcta_to_lat_lon,
-    rank_stations,
-    select_station,
     Station,
-    upsample,
-    rollup_starting,
+    rank_stations,
     rollup_ending,
-    rollup_midpoint,
     rollup_instant,
+    rollup_midpoint,
+    rollup_starting,
+    select_station,
+    upsample,
+    zcta_to_lat_lon,
 )
 from riweather.viz import plot_stations
