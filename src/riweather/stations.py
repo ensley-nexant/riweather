@@ -1,7 +1,7 @@
 """Weather station operations."""
 
 import operator
-from datetime import datetime, timezone
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -224,7 +224,7 @@ class Station:
         stmt = select(models.Station).where(models.Station.usaf_id == self.usaf_id)
         with MetadataSession() as session:
             station = session.scalars(stmt).first()
-            station_info = {col: getattr(station, col) for col in station.__table__.columns.keys()}
+            station_info = {col: getattr(station, col) for col in station.__table__.columns.keys()}  # noqa: SIM118
             station_info["years"] = [f.year for f in station.filecounts]
 
         return station_info
@@ -384,14 +384,18 @@ class Station:
             for filename in filenames:
                 datastream = conn.read_file_as_bytes(filename)
                 for line in datastream.readlines():
+                    date_str = line[15:27].decode("utf-8")
+                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M"))  # noqa: DTZ007
+                    wind_dir = int(line[60:63]) if line[60:63].decode("utf-8") != "999" else float("nan")
+                    wind_speed = float(line[65:69]) / 10.0 if line[65:69].decode("utf-8") != "9999" else float("nan")
                     tempC = _parse_temp(line[87:92])
                     dewC = _parse_temp(line[93:98])
-                    date_str = line[15:27].decode("utf-8")
-                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M"))
-                    data.append([dt, tempC, dewC])
+                    data.append([dt, wind_dir, wind_speed, tempC, dewC])
 
-        timestamps, temps, dews = zip(*sorted(data), strict=True)
-        ts = pd.DataFrame({"tempC": temps, "dewC": dews}, index=timestamps)
+        timestamps, wind_dirs, wind_speeds, temps, dews = zip(*sorted(data), strict=True)
+        ts = pd.DataFrame(
+            {"wind_dir": wind_dirs, "wind_speed": wind_speeds, "tempC": temps, "dewC": dews}, index=timestamps
+        )
 
         if scale == "F":
             ts["tempF"] = ts["tempC"] * 1.8 + 32
