@@ -57,7 +57,7 @@ def plot_stations(
 
     Raises:
         ImportError: If [matplotlib][] and
-            [folium](https://python-visualization.github.io/folium/) are not installed.
+            [folium](https://python-visualization.github.io/folium/latest) are not installed.
 
     Args:
         lat: Site latitude

@@ -1,7 +1,4 @@
-"""riweather.
-
-Grab publicly available weather data.
-"""
+"""Grab publicly available weather data."""
 
 from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files

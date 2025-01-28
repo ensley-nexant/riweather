@@ -192,8 +192,10 @@ def rollup_instant(data: pd.Series | pd.DataFrame, period: str = "h", *, upsampl
 
 
 class Station:
+    """ISD Station object."""
+
     def __init__(self, usaf_id: str, *, load_metadata_on_init: bool = True):
-        """ISD Station object.
+        """Initialize a station.
 
         Args:
             usaf_id: USAF identifier
@@ -222,7 +224,7 @@ class Station:
         stmt = select(models.Station).where(models.Station.usaf_id == self.usaf_id)
         with MetadataSession() as session:
             station = session.scalars(stmt).first()
-            station_info = {col: getattr(station, col) for col in station.__table__.columns}
+            station_info = {col: getattr(station, col) for col in station.__table__.columns.keys()}
             station_info["years"] = [f.year for f in station.filecounts]
 
         return station_info
@@ -385,7 +387,7 @@ class Station:
                     tempC = _parse_temp(line[87:92])
                     dewC = _parse_temp(line[93:98])
                     date_str = line[15:27].decode("utf-8")
-                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M").astimezone(timezone.utc))
+                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M"))
                     data.append([dt, tempC, dewC])
 
         timestamps, temps, dews = zip(*sorted(data), strict=True)
@@ -473,7 +475,6 @@ class Station:
         return ts
 
     def __repr__(self):
-        """String representation of a Station."""
         return f'Station("{self.usaf_id}")'
 
 
