@@ -12,7 +12,7 @@ import shapefile
 import shapely.geometry
 
 from riweather import MetadataSession
-from riweather.connection import NOAAFTPConnection, NOAAFTPConnectionException
+from riweather.connection import NOAAFTPConnection, NOAAFTPConnectionError
 from riweather.db import models
 
 _MIN_YEAR = 2005
