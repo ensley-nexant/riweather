@@ -329,7 +329,7 @@ def assemble_file_metadata_from_crawl() -> list[dict]:
     with NOAAFTPConnection() as conn:
         if conn.ftp is None:
             msg = "FTP connection could not be established."
-            raise NOAAFTPConnectionException(msg) from None
+            raise NOAAFTPConnectionError(msg) from None
 
         for year in range(_MIN_YEAR + 1, datetime.datetime.now(tz=datetime.timezone.utc).year + 1):
             files = conn.ftp.mlsd(f"pub/data/noaa/{year}", ["size", "type"])

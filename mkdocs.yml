@@ -55,7 +55,7 @@ plugins:
             docstring_section_style: "list"
             docstring_style: google
             heading_level: 3
-            line-length: 100
+            line_length: 100
             merge_init_into_class: True
             parameter_headings: True
             separate_signature: True

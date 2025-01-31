@@ -10,7 +10,7 @@ import pytz
 from pandas.tseries.frequencies import to_offset
 from sqlalchemy import select
 
-from riweather import MetadataSession
+from riweather import MetadataSession, parser
 from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
 
@@ -25,6 +25,8 @@ __all__ = (
     "rollup_midpoint",
     "rollup_instant",
 )
+
+from riweather.parser import ISDRecord, MandatoryData
 
 
 def _parse_temp(s: bytes) -> float:
@@ -192,9 +194,22 @@ def rollup_instant(data: pd.Series | pd.DataFrame, period: str = "h", *, upsampl
 
 
 class Station:
-    """ISD Station object."""
+    """ISD Station object.
 
-    def __init__(self, usaf_id: str, *, load_metadata_on_init: bool = True):
+    Examples:
+        >>> s = Station("720534")
+        >>> s
+        Station("720534")
+        >>> print(s.name, s.latitude, s.longitude)
+        ERIE MUNICIPAL AIRPORT 40.017 -105.05
+
+    Attributes:
+        name: Station name.
+        state: US state in which the station is located.
+        wban_ids: List of valid WBAN (Weather Bureau Army Navy) identifiers.
+    """
+
+    def __init__(self, usaf_id: str, *, load_metadata_on_init: bool = True) -> None:
         """Initialize a station.
 
         Args:
@@ -204,9 +219,7 @@ class Station:
                 properties.
 
         Examples:
-            >>> s = Station("720534")
-            >>> print(s.name, s.latitude, s.longitude)
-            ERIE MUNICIPAL AIRPORT 40.017 -105.05
+            Using `load_metadata_on_init=True` 
         """
         self.usaf_id = usaf_id
 
@@ -241,7 +254,13 @@ class Station:
 
     @property
     def name(self) -> str:
-        """Station name."""
+        """Station name.
+
+        Examples:
+            >>> s = Station("720534")
+            >>> s.name
+            ERIE MUNICIPAL AIRPORT
+        """
         return self._station.get("name")
 
     @property
@@ -266,7 +285,13 @@ class Station:
 
     @property
     def state(self) -> str:
-        """US state in which the station is located."""
+        """US state in which the station is located.
+
+        Examples:
+            >>> s = Station("720534")
+            >>> s.state
+            CO
+        """
         return self._station.get("state")
 
     @property
@@ -343,6 +368,57 @@ class Station:
             ]
 
         return pd.DataFrame(results).squeeze()
+
+    def fetch_raw_data(self, year: int | list[int], *, use_http: bool = False) -> list[ISDRecord]:
+        if not isinstance(year, list):
+            year = [year]
+
+        filenames = [f for y in year for f in self.get_filenames(y)]
+        connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
+
+        with connector() as conn:
+            data = [
+                parser.parse_line(line.decode("utf-8"))
+                for filename in filenames
+                for line in conn.read_file_as_bytes(filename)
+            ]
+
+        return data
+
+    def fetch_data(
+            self,
+            year: int | list[int],
+            datum: str | list[str] | None = None,
+            *,
+            include_control: bool = False,
+            include_quality_codes: bool = True,
+            use_http: bool = False,
+    ) -> pd.DataFrame:
+        if not isinstance(datum, list):
+            datum = [datum]
+
+        if not all(d in MandatoryData.model_fields for d in datum):
+            msg = "datum must be a subset of the following: {}".format(list(MandatoryData.model_fields))
+            raise ValueError(msg)
+
+        data = self.fetch_raw_data(year, use_http=use_http)
+
+        timestamps = pd.DatetimeIndex([d.control.datetime for d in data])
+
+        if include_control:
+            df_control = pd.json_normalize([d.control.model_dump() for d in data])
+            df_control.index = timestamps
+        else:
+            df_control = pd.DataFrame()
+
+        df_mandatory = pd.json_normalize([d.mandatory.model_dump(include=datum) for d in data])
+        df_mandatory.index = timestamps
+
+        df = pd.concat([df_control, df_mandatory], axis=1)
+        if not include_quality_codes:
+            df = df.loc[:, df.columns[~df.columns.str.contains("quality_code")]]
+
+        return df
 
     def fetch_raw_temp_data(
         self,
