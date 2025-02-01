@@ -26,4 +26,4 @@ jobs:
         run: hatch fmt --check
 
       - name: Run unit tests
-        run: hatch test tests --python ${{ matrix.python-version }} --cover --randomize --parallel --retries 2 --retry-delay 1
+        run: hatch test tests --python ${{ matrix.python-version }}
