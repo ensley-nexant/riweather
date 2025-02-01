@@ -1,5 +1,5 @@
 [project]
-name="riweather"
+name = "riweather"
 dynamic = ["version"]
 description = "Grab publicly available weather data"
 authors = [
@@ -20,7 +20,7 @@ dependencies = [
     "shapely~=2.0.0",
     "pandas~=2.1.0",
     "pydantic~=2.10.6",
-    "pyproj~=3.4.1",
+    "pyproj~=3.7.0",
 ]
 
 [project.optional-dependencies]
