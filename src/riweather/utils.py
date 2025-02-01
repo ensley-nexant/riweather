@@ -1,4 +1,5 @@
 """Miscellaneous utility functions."""
+
 from urllib.parse import urlparse
 
 
@@ -29,5 +30,6 @@ def parse_s3_uri(s3uri: str) -> tuple[str, str]:
     """
     parts = urlparse(s3uri)
     if parts.scheme != "s3":
-        raise ValueError("Not an S3 URI")
+        msg = "Not an S3 URI"
+        raise ValueError(msg)
     return parts.netloc, parts.path.removeprefix("/")

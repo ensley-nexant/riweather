@@ -7,30 +7,21 @@ jobs:
   test_pypi:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         architecture: x64
 
-    - name: Upgrade pip
-      run: |
-        pip install --constraint=.github/workflows/constraints.txt pip
-        pip --version
-
-    - name: Install Poetry
-      run: |
-        pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-        poetry --version
+    - name: Install Hatch
+      run: pip install --upgrade hatch
 
     - name: Inject dev version number
       run: >-
-        poetry version patch &&
-        version=$(poetry version | awk '{print $2}') &&
-        poetry version $version.dev.$(date +%s)
+        hatch version patch,dev
 
-    - name: Build with Poetry
-      run: poetry build
+    - name: Build with Hatch
+      run: hatch build
 
     - name: Publish to TestPyPI
       uses: pypa/gh-action-pypi-publish@v1.6.4

@@ -1,4 +1,5 @@
 """Nox sessions."""
+
 import tempfile
 from pathlib import Path
 
@@ -18,19 +19,17 @@ def install_with_constraints(session, *args, **kwargs):
             "--with=dev",
             "--format=constraints.txt",
             "--without-hashes",
-            "--output={}".format(requirements.name),
+            f"--output={requirements.name}",
             external=True,
         )
-        session.install("--constraint={}".format(requirements.name), *args, **kwargs)
+        session.install(f"--constraint={requirements.name}", *args, **kwargs)
 
 
 @nox.session(python=["3.11", "3.10"])
 def tests(session):
     """Run the test suite."""
     session.run("poetry", "install", external=True)
-    install_with_constraints(
-        session, ".", "coverage[toml]", "pytest", "pytest-cov", "pytest-mock"
-    )
+    install_with_constraints(session, ".", "coverage[toml]", "pytest", "pytest-cov", "pytest-mock")
     session.run("coverage", "run", "--parallel", "-m", "pytest")
 
 
@@ -76,7 +75,7 @@ def safety(session):
             "--with=dev",
             "--format=requirements.txt",
             "--without-hashes",
-            "--output={}".format(requirements.name),
+            f"--output={requirements.name}",
             external=True,
         )
         install_with_constraints(session, "safety")

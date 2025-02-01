@@ -1,4 +1,7 @@
 """Weather station operations."""
+
+from __future__ import annotations
+
 import operator
 from datetime import datetime
 
@@ -9,7 +12,7 @@ import pytz
 from pandas.tseries.frequencies import to_offset
 from sqlalchemy import select
 
-from riweather import MetadataSession
+from riweather import MetadataSession, parser
 from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
 
@@ -25,10 +28,11 @@ __all__ = (
     "rollup_instant",
 )
 
+from riweather.parser import ISDRecord, MandatoryData
+
 
 def _parse_temp(s: bytes) -> float:
-    value = float(s) / 10.0 if s.decode("utf-8") != "+9999" else float("nan")
-    return value
+    return float(s) / 10.0 if s.decode("utf-8") != "+9999" else float("nan")
 
 
 def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
@@ -59,17 +63,10 @@ def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
         2023-01-01 00:05:00     1.12500
         Freq: T, Length: 65, dtype: float64
     """
-    ts = (
-        data.resample(period)
-        .mean()
-        .interpolate(method="linear", limit=60, limit_direction="both")
-    )
-    return ts
+    return data.resample(period).mean().interpolate(method="linear", limit=60, limit_direction="both")
 
 
-def rollup_starting(
-    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
-):
+def rollup_starting(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
     """Roll up data, labelled with the period start.
 
     Args:
@@ -98,13 +95,10 @@ def rollup_starting(
     """
     if upsample_first:
         data = upsample(data, period="min")
-    ts = data.resample(period, label="left", closed="left").mean()
-    return ts
+    return data.resample(period, label="left", closed="left").mean()
 
 
-def rollup_ending(
-    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
-):
+def rollup_ending(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
     """Roll up data, labelled with the period end.
 
     Args:
@@ -133,13 +127,10 @@ def rollup_ending(
     """
     if upsample_first:
         data = upsample(data, period="min")
-    ts = data.resample(period, label="right", closed="right").mean()
-    return ts
+    return data.resample(period, label="right", closed="right").mean()
 
 
-def rollup_midpoint(
-    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
-):
+def rollup_midpoint(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
     """Roll up data, labelled with the period midpoint.
 
     Args:
@@ -169,17 +160,10 @@ def rollup_midpoint(
     if upsample_first:
         data = upsample(data, period="min")
     half_period = to_offset(to_offset(period).delta / 2)
-    ts = (
-        data.shift(freq=half_period)
-        .resample(period, label="left", closed="left")
-        .mean()
-    )
-    return ts
+    return data.shift(freq=half_period).resample(period, label="left", closed="left").mean()
 
 
-def rollup_instant(
-    data: pd.Series | pd.DataFrame, period: str = "h", upsample_first: bool = True
-):
+def rollup_instant(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
     """Roll up data, labelled with interpolated values.
 
     Args:
@@ -208,24 +192,33 @@ def rollup_instant(
     """
     if upsample_first:
         data = upsample(data, period="min")
-    ts = data.resample(period, label="left", closed="left").first()
-    return ts
+    return data.resample(period, label="left", closed="left").first()
 
 
-class Station:  # noqa: D101
-    def __init__(self, usaf_id: str, load_metadata_on_init: bool = True):
-        """ISD Station object.
+class Station:
+    """ISD Station object.
+
+    Examples:
+        >>> s = Station("720534")
+        >>> s
+        Station("720534")
+        >>> print(s.name, s.latitude, s.longitude)
+        ERIE MUNICIPAL AIRPORT 40.017 -105.05
+
+    Attributes:
+        name: Station name.
+        state: US state in which the station is located.
+        wban_ids: List of valid WBAN (Weather Bureau Army Navy) identifiers.
+    """
+
+    def __init__(self, usaf_id: str, *, load_metadata_on_init: bool = True) -> None:
+        """Initialize a station.
 
         Args:
             usaf_id: USAF identifier
             load_metadata_on_init: If `True`, station metadata will be retrieved
                 from the local data store and loaded into the object as
                 properties.
-
-        Examples:
-            >>> s = Station("720534")
-            >>> print(s.name, s.latitude, s.longitude)
-            ERIE MUNICIPAL AIRPORT 40.017 -105.05
         """
         self.usaf_id = usaf_id
 
@@ -243,9 +236,7 @@ class Station:  # noqa: D101
         stmt = select(models.Station).where(models.Station.usaf_id == self.usaf_id)
         with MetadataSession() as session:
             station = session.scalars(stmt).first()
-            station_info = {
-                col: getattr(station, col) for col in station.__table__.columns.keys()
-            }
+            station_info = {col: getattr(station, col) for col in station.__table__.columns.keys()}  # noqa: SIM118
             station_info["years"] = [f.year for f in station.filecounts]
 
         return station_info
@@ -262,7 +253,13 @@ class Station:  # noqa: D101
 
     @property
     def name(self) -> str:
-        """Station name."""
+        """Station name.
+
+        Examples:
+            >>> s = Station("720534")
+            >>> s.name
+            ERIE MUNICIPAL AIRPORT
+        """
         return self._station.get("name")
 
     @property
@@ -287,7 +284,13 @@ class Station:  # noqa: D101
 
     @property
     def state(self) -> str:
-        """US state in which the station is located."""
+        """US state in which the station is located.
+
+        Examples:
+            >>> s = Station("720534")
+            >>> s.state
+            CO
+        """
         return self._station.get("state")
 
     @property
@@ -295,7 +298,7 @@ class Station:  # noqa: D101
         """Years for which data exists for the station."""
         return self._station.get("years", [])
 
-    def get_filenames(self, year: int = None) -> list[str]:
+    def get_filenames(self, year: int | None = None) -> list[str]:
         """Construct the names of ISD files corresponding to this station.
 
         Args:
@@ -310,9 +313,7 @@ class Station:  # noqa: D101
             >>> print(s.get_filenames(2022))
             ['/pub/data/noaa/2022/720534-00161-2022.gz']
         """
-        stmt = select(models.FileCount).where(
-            models.FileCount.station_id == self._station.get("id")
-        )
+        stmt = select(models.FileCount).where(models.FileCount.station_id == self._station.get("id"))
         if year is not None:
             stmt = stmt.where(models.FileCount.year == year)
 
@@ -320,13 +321,13 @@ class Station:  # noqa: D101
         filenames = []
         with MetadataSession() as session:
             for row in session.scalars(stmt):
-                filenames.append(
+                filenames.append(  # noqa: PERF401
                     filename_template.format(self.usaf_id, row.wban_id, row.year)
                 )
 
         return filenames
 
-    def quality_report(self, year: int = None) -> pd.DataFrame | pd.Series:
+    def quality_report(self, year: int | None = None) -> pd.DataFrame | pd.Series:
         """Retrieve information on data quality.
 
         Args:
@@ -336,9 +337,7 @@ class Station:  # noqa: D101
         Returns:
             Data quality report
         """
-        stmt = select(models.FileCount).where(
-            models.FileCount.station_id == self._station.get("id")
-        )
+        stmt = select(models.FileCount).where(models.FileCount.station_id == self._station.get("id"))
         if year is not None:
             stmt = stmt.where(models.FileCount.year == year)
 
@@ -369,10 +368,60 @@ class Station:  # noqa: D101
 
         return pd.DataFrame(results).squeeze()
 
+    def fetch_raw_data(self, year: int | list[int], *, use_http: bool = False) -> list[ISDRecord]:
+        if not isinstance(year, list):
+            year = [year]
+
+        filenames = [f for y in year for f in self.get_filenames(y)]
+        connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
+
+        with connector() as conn:
+            return [
+                parser.parse_line(line.decode("utf-8"))
+                for filename in filenames
+                for line in conn.read_file_as_bytes(filename)
+            ]
+
+    def fetch_data(
+        self,
+        year: int | list[int],
+        datum: str | list[str] | None = None,
+        *,
+        include_control: bool = False,
+        include_quality_codes: bool = True,
+        use_http: bool = False,
+    ) -> pd.DataFrame:
+        if not isinstance(datum, list):
+            datum = [datum]
+
+        if not all(d in MandatoryData.model_fields for d in datum):
+            msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
+            raise ValueError(msg)
+
+        data = self.fetch_raw_data(year, use_http=use_http)
+
+        timestamps = pd.DatetimeIndex([d.control.datetime for d in data])
+
+        if include_control:
+            df_control = pd.json_normalize([d.control.model_dump() for d in data])
+            df_control.index = timestamps
+        else:
+            df_control = pd.DataFrame()
+
+        df_mandatory = pd.json_normalize([d.mandatory.model_dump(include=datum) for d in data])
+        df_mandatory.index = timestamps
+
+        df = pd.concat([df_control, df_mandatory], axis=1)
+        if not include_quality_codes:
+            df = df.loc[:, df.columns[~df.columns.str.contains("quality_code")]]
+
+        return df
+
     def fetch_raw_temp_data(
         self,
         year: int | list[int] | None = None,
         scale: str = "C",
+        *,
         use_http: bool = False,
     ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
@@ -401,28 +450,32 @@ class Station:  # noqa: D101
         connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
 
         if scale not in ("C", "F"):
-            raise ValueError('Scale must be "C" (Celsius) or "F" (Fahrenheit).')
+            msg = 'Scale must be "C" (Celsius) or "F" (Fahrenheit).'
+            raise ValueError(msg)
 
         with connector() as conn:
             for filename in filenames:
                 datastream = conn.read_file_as_bytes(filename)
                 for line in datastream.readlines():
+                    date_str = line[15:27].decode("utf-8")
+                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M"))  # noqa: DTZ007
+                    wind_dir = int(line[60:63]) if line[60:63].decode("utf-8") != "999" else float("nan")
+                    wind_speed = float(line[65:69]) / 10.0 if line[65:69].decode("utf-8") != "9999" else float("nan")
                     tempC = _parse_temp(line[87:92])
                     dewC = _parse_temp(line[93:98])
-                    date_str = line[15:27].decode("utf-8")
-                    dt = pytz.UTC.localize(datetime.strptime(date_str, "%Y%m%d%H%M"))
-                    data.append([dt, tempC, dewC])
+                    data.append([dt, wind_dir, wind_speed, tempC, dewC])
 
-        timestamps, temps, dews = zip(*sorted(data), strict=True)
-        ts = pd.DataFrame({"tempC": temps, "dewC": dews}, index=timestamps)
+        timestamps, wind_dirs, wind_speeds, temps, dews = zip(*sorted(data), strict=True)
+        ts = pd.DataFrame(
+            {"wind_dir": wind_dirs, "wind_speed": wind_speeds, "tempC": temps, "dewC": dews}, index=timestamps
+        )
 
         if scale == "F":
             ts["tempF"] = ts["tempC"] * 1.8 + 32
             ts["dewF"] = ts["dewC"] * 1.8 + 32
             ts = ts.drop(["tempC", "dewC"], axis="columns")
 
-        ts = ts.groupby(ts.index).mean()
-        return ts
+        return ts.groupby(ts.index).mean()
 
     def fetch_temp_data(
         self,
@@ -431,6 +484,7 @@ class Station:  # noqa: D101
         scale: str = "C",
         period: str = "H",
         rollup: str = "ending",
+        *,
         upsample_first: bool = True,
         use_http: bool = False,
     ) -> pd.DataFrame | pd.Series:
@@ -469,14 +523,16 @@ class Station:  # noqa: D101
                                           tempC      dewC
             2022-01-01 00:00:00+00:00 -4.298889 -5.512222
             2022-01-01 01:00:00+00:00 -6.555833 -7.688333
-        """  # noqa
+        """
         if value is None:
             value = "both"
         elif value not in ("temperature", "dew_point"):
-            raise ValueError('Value must be "temperature" or "dew_point"')
+            msg = 'Value must be "temperature" or "dew_point"'
+            raise ValueError(msg)
 
         if rollup not in ("starting", "ending", "midpoint", "instant"):
-            raise ValueError("Invalid rollup")
+            msg = "Invalid rollup"
+            raise ValueError(msg)
 
         raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
         if rollup == "starting":
@@ -492,11 +548,10 @@ class Station:  # noqa: D101
             return ts.loc[:, f"temp{scale}"]
         if value == "dew_point":
             return ts.loc[:, f"dew{scale}"]
-        else:
-            return ts
+
+        return ts
 
     def __repr__(self):
-        """String representation of a Station."""
         return f'Station("{self.usaf_id}")'
 
 
@@ -524,13 +579,13 @@ def _calculate_distances(lat, lon):
 
     data = [
         {
-            "usaf_id": id,
+            "usaf_id": id_,
             "name": name,
             "distance": dist,
             "latitude": lat,
             "longitude": lon,
         }
-        for id, name, dist, lat, lon in zip(ids, names, dists, lats, lons, strict=True)
+        for id_, name, dist, lat, lon in zip(ids, names, dists, lats, lons, strict=True)
     ]
 
     return [data[i] for i in np.argsort(dists)]
@@ -546,15 +601,13 @@ def zcta_to_lat_lon(zcta: str) -> (float, float):
         The center point of the ZCTA (Zip Code Tabulation Area).
     """
     with MetadataSession() as session:
-        zcta = session.scalars(
-            select(models.Zcta).where(models.Zcta.zip == zcta)
-        ).first()
+        zcta = session.scalars(select(models.Zcta).where(models.Zcta.zip == zcta)).first()
 
     return zcta.latitude, zcta.longitude
 
 
 def rank_stations(
-    lat: float, lon: float, *, year: int = None, max_distance_m: int = None
+    lat: float, lon: float, *, year: int | None = None, max_distance_m: int | None = None
 ) -> pd.DataFrame:
     """Rank stations by distance to a point.
 
@@ -587,7 +640,7 @@ def rank_stations(
     data = {}
     with MetadataSession() as session:
         for row in session.execute(results):
-            if row.usaf_id not in data.keys():
+            if row.usaf_id not in data:
                 data[row.usaf_id] = {
                     **station_info[row.usaf_id],
                     "years": [],
@@ -597,17 +650,14 @@ def rank_stations(
             data[row.usaf_id]["years"].append(row.year)
             data[row.usaf_id]["quality"].append(row.quality)
 
-    data = pd.DataFrame(
-        sorted(data.values(), key=operator.itemgetter("distance"))
-    ).set_index("usaf_id")
+    data = pd.DataFrame(sorted(data.values(), key=operator.itemgetter("distance"))).set_index("usaf_id")
 
     if year is not None:
 
         def _filter_years(x):
             if isinstance(year, list):
                 return all(y in x for y in year)
-            else:
-                return year in x
+            return year in x
 
         data = data.loc[data["years"].apply(_filter_years), :]
 
@@ -630,7 +680,8 @@ def select_station(ranked_stations: pd.DataFrame, rank: int = 0) -> Station:
         A [`Station`][riweather.Station] object.
     """
     if len(ranked_stations) <= rank:
-        raise ValueError("Rank too large, not enough stations")
+        msg = "Rank too large, not enough stations"
+        raise ValueError(msg)
 
     ranked_stations = ranked_stations.sort_values("distance")
     station = ranked_stations.iloc[rank]

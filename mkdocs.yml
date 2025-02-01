@@ -47,15 +47,25 @@ plugins:
             - https://pandas.pydata.org/docs/objects.inv
             - https://matplotlib.org/stable/objects.inv
             - https://numpy.org/doc/stable/objects.inv
-            - https://python-visualization.github.io/folium/objects.inv
+            - https://python-visualization.github.io/folium/latest/objects.inv
           options:
-            show_root_heading: True
-            show_root_full_path: False
-            separate_signature: True
-            docstring_section_style: "table"
+            docstring_options:
+              ignore_init_summary: True
+              trim_doctest_flags: True
+            docstring_section_style: "list"
+            docstring_style: google
+            heading_level: 3
+            line_length: 100
             merge_init_into_class: True
+            parameter_headings: True
+            separate_signature: True
+            show_root_heading: True
+            show_root_toc_entry: false
+            show_symbol_type_heading: True
+            show_symbol_type_toc: True
+            signature_crossrefs: True
   - mknotebooks:
       execute: false
       timeout: 100
       allow_errors: false
-copyright: "Copyright &copy; 2022-2023 RESOURCE INNOVATIONS. All rights reserved."
+copyright: "Copyright &copy; 2022-2025 RESOURCE INNOVATIONS. All rights reserved."

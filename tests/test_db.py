@@ -1,4 +1,5 @@
 """Test module for the metadata database."""
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -21,20 +22,19 @@ def session():
 @pytest.fixture(scope="module")
 def valid_zcta():
     """A sample valid ZCTA database object."""
-    zcta = Zcta(
+    return Zcta(
         zip="35768",
         latitude=34.77851579407223,
         longitude=-86.10382679364129,
         county_id="01071",
         state="AL",
     )
-    return zcta
 
 
 @pytest.fixture(scope="module")
 def valid_station():
     """A sample valid Station database object."""
-    station = Station(
+    return Station(
         usaf_id="690150",
         wban_ids="93121,99999",
         recent_wban_id="93121",
@@ -45,13 +45,12 @@ def valid_station():
         elevation=610.5,
         state="CA",
     )
-    return station
 
 
 @pytest.fixture(scope="module")
 def valid_filecount(valid_station):
     """A sample valid FileCount database object."""
-    file = FileCount(
+    return FileCount(
         wban_id="93121",
         station=valid_station,
         year=2006,
@@ -71,7 +70,6 @@ def valid_filecount(valid_station):
         n_zero_months=0,
         quality="medium",
     )
-    return file
 
 
 class TestDatabase:
@@ -85,18 +83,14 @@ class TestDatabase:
         """A valid station can be inserted."""
         session.add(valid_station)
         session.commit()
-        station = (
-            session.query(Station).filter_by(usaf_id=valid_station.usaf_id).first()
-        )
+        station = session.query(Station).filter_by(usaf_id=valid_station.usaf_id).first()
         assert station == valid_station
 
     def test_db_add_valid_file(self, session, valid_filecount):
         """A valid file can be inserted."""
         session.add(valid_filecount)
         session.commit()
-        file = (
-            session.query(FileCount).filter_by(wban_id=valid_filecount.wban_id).first()
-        )
+        file = session.query(FileCount).filter_by(wban_id=valid_filecount.wban_id).first()
         assert file == valid_filecount
 
     def test_db_add_valid_zcta(self, session, valid_zcta):

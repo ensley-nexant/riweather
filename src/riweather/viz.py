@@ -1,6 +1,13 @@
 """Visualization module for weather stations."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def _get_extent(lat, lon, tlats, tlons, buffer=0.05, max_aspect_ratio=1.5):
@@ -20,25 +27,26 @@ def _get_extent(lat, lon, tlats, tlons, buffer=0.05, max_aspect_ratio=1.5):
 
 def _get_zoom_level(distance_m, n_tiles=600):
     km = distance_m / 1000.0
-    zoom_level = int(np.log2(128 * n_tiles / km))
-    return zoom_level
+    return int(np.log2(128 * n_tiles / km))
 
 
 def _calculate_distance_labels(distance_m, distance_unit):
     if distance_unit not in ("m", "km", "mi"):
-        raise ValueError("Invalid distance unit. Must be m, km, or mi")
+        msg = "Invalid distance unit. Must be m, km, or mi"
+        raise ValueError(msg)
 
     if distance_unit == "m":
         distance = distance_m
-        dist_str = "{:,.0f} m".format(distance)
+        dist_str = f"{distance:,.0f} m"
     elif distance_unit == "km":
         distance = distance_m / 1000.0
-        dist_str = "{:,.1f} km".format(distance)
+        dist_str = f"{distance:,.1f} km"
     elif distance_unit == "mi":
         distance = distance_m / 1609.344
-        dist_str = "{:,.1f} mi".format(distance)
+        dist_str = f"{distance:,.1f} mi"
     else:
-        raise ValueError("Invalid distance unit. Must be m, km, or mi")
+        msg = "Invalid distance unit. Must be m, km, or mi"
+        raise ValueError(msg)
 
     return dist_str
 
@@ -48,14 +56,14 @@ def plot_stations(
     lon: float,
     ranked_stations: pd.DataFrame,
     *,
-    n: int = None,
+    n: int | None = None,
     distance_unit: str = "m",
 ):
     """Plot stations relative to a location.
 
     Raises:
         ImportError: If [matplotlib][] and
-            [folium](https://python-visualization.github.io/folium/) are not installed.
+            [folium](https://python-visualization.github.io/folium/latest) are not installed.
 
     Args:
         lat: Site latitude
@@ -68,12 +76,14 @@ def plot_stations(
     try:
         import matplotlib.pyplot as plt  # noqa
     except ImportError:
-        raise ImportError("Plotting stations requires matplotlib") from None
+        msg = "Plotting stations requires matplotlib"
+        raise ImportError(msg) from None
 
     try:
         import folium
     except ImportError:
-        raise ImportError("Plotting stations requires folium") from None
+        msg = "Plotting stations requires folium"
+        raise ImportError(msg) from None
 
     if n is None:
         n = ranked_stations.shape[0]
