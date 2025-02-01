@@ -18,7 +18,7 @@ dependencies = [
     "sqlalchemy~=2.0.20",
     "pyshp~=2.3.1",
     "shapely~=2.0.0",
-    "pandas~=2.1.0",
+    "pandas~=2.2",
     "pydantic~=2.10.6",
     "pyproj~=3.7.0",
 ]
