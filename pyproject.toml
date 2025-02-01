@@ -1,5 +1,6 @@
 [project]
 name="riweather"
+dynamic = ["version"]
 description = "Grab publicly available weather data"
 authors = [
     { name = "John Ensley", email="jensley@resource-innovations.com" }
