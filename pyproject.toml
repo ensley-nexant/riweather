@@ -36,12 +36,6 @@ riweather = "riweather.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.sdist]
-include = ["src/riweather/resources/metadata.db"]
-
-[tool.hatch.build.targets.wheel]
-include = ["src/riweather/resources/metadata.db"]
-
 [tool.hatch.envs.docs]
 dependencies = [
     "mkdocs~=1.6.1",

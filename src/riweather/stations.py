@@ -1,5 +1,7 @@
 """Weather station operations."""
 
+from __future__ import annotations
+
 import operator
 from datetime import datetime
 
@@ -217,9 +219,6 @@ class Station:
             load_metadata_on_init: If `True`, station metadata will be retrieved
                 from the local data store and loaded into the object as
                 properties.
-
-        Examples:
-            Using `load_metadata_on_init=True` 
         """
         self.usaf_id = usaf_id
 
@@ -377,28 +376,26 @@ class Station:
         connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
 
         with connector() as conn:
-            data = [
+            return [
                 parser.parse_line(line.decode("utf-8"))
                 for filename in filenames
                 for line in conn.read_file_as_bytes(filename)
             ]
 
-        return data
-
     def fetch_data(
-            self,
-            year: int | list[int],
-            datum: str | list[str] | None = None,
-            *,
-            include_control: bool = False,
-            include_quality_codes: bool = True,
-            use_http: bool = False,
+        self,
+        year: int | list[int],
+        datum: str | list[str] | None = None,
+        *,
+        include_control: bool = False,
+        include_quality_codes: bool = True,
+        use_http: bool = False,
     ) -> pd.DataFrame:
         if not isinstance(datum, list):
             datum = [datum]
 
         if not all(d in MandatoryData.model_fields for d in datum):
-            msg = "datum must be a subset of the following: {}".format(list(MandatoryData.model_fields))
+            msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
             raise ValueError(msg)
 
         data = self.fetch_raw_data(year, use_http=use_http)

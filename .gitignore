@@ -129,5 +129,4 @@ dmypy.json
 .pyre/
 
 .idea/
-# don't commit the lock file, since this is (mostly) just a library
-poetry.lock
+data/

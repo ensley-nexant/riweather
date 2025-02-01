@@ -1,7 +1,13 @@
 """Visualization module for weather stations."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def _get_extent(lat, lon, tlats, tlons, buffer=0.05, max_aspect_ratio=1.5):

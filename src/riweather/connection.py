@@ -1,12 +1,17 @@
 """External connection objects."""
 
+from __future__ import annotations
+
 import ftplib
 import gzip
-import os
 import typing
 from io import BytesIO
 
+if typing.TYPE_CHECKING:
+    from os import PathLike
+
 import requests
+from typing_extensions import Self
 
 from riweather import utils
 
@@ -46,7 +51,7 @@ class NOAAFTPConnection:
         """Initialize the FTP connection object."""
         self.ftp: ftplib.FTP | None = None
 
-    def __enter__(self) -> "NOAAFTPConnection":
+    def __enter__(self) -> Self:
         """Connect to the FTP server.
 
         Returns:
@@ -76,7 +81,7 @@ class NOAAFTPConnection:
 
         self.ftp = None
 
-    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO | gzip.GzipFile:
+    def read_file_as_bytes(self, filename: str | PathLike) -> typing.IO | gzip.GzipFile:
         """Read a file off of the server and into a byte stream.
 
         Args:
@@ -112,14 +117,14 @@ class NOAAHTTPConnection:
         """Initialize the HTTP connection object."""
         self.base_url = self._host
 
-    def __enter__(self) -> "NOAAHTTPConnection":
+    def __enter__(self) -> Self:
         """Connect to the HTTP server."""
         return self
 
     def __exit__(self, *args) -> None:
         """Close the HTTP connection gracefully."""
 
-    def read_file_as_bytes(self, filename: str | os.PathLike) -> typing.IO | gzip.GzipFile:
+    def read_file_as_bytes(self, filename: str | PathLike) -> typing.IO | gzip.GzipFile:
         """Read a file off of the server and into a byte stream."""
         stream = BytesIO()
         try:

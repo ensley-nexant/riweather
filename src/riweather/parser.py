@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import re
 from datetime import datetime, timezone
-from typing import Any, Annotated
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, field_validator, BeforeValidator, computed_field
+from pydantic import BaseModel, BeforeValidator, Field, computed_field, field_validator
 
 
-def missing_if_all_nines(v: str, *, scaling_factor: float | int = 1) -> str | int | float | None:
+def missing_if_all_nines(v: str, *, scaling_factor: float = 1) -> str | int | float | None:
     if v is None:
         return None
 
@@ -25,8 +27,8 @@ class ControlData(BaseModel):
     wban_id: Annotated[str, Field(min_length=5, max_length=5, pattern=r"^\d*$")]
     datetime: datetime
     data_source_flag: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
-    latitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.))]
-    longitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.))]
+    latitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.0))]
+    longitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.0))]
     report_type_code: Annotated[str | None, Field(max_length=5), BeforeValidator(missing_if_all_nines)]
     elevation: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     call_letter_id: Annotated[str | None, Field(max_length=5), BeforeValidator(missing_if_all_nines)]
@@ -42,7 +44,7 @@ class WindObservation(BaseModel):
     direction_angle: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     direction_quality_code: Annotated[str, Field(max_length=1)]
     type_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
-    speed_rate: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.))]
+    speed_rate: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     speed_quality_code: Annotated[str, Field(max_length=1)]
 
 
@@ -61,7 +63,7 @@ class VisibilityObservation(BaseModel):
 
 
 class AirTemperatureObservation(BaseModel):
-    temperature_c: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.))]
+    temperature_c: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     quality_code: Annotated[str, Field(max_length=1)]
 
     @computed_field
@@ -70,7 +72,7 @@ class AirTemperatureObservation(BaseModel):
 
 
 class AtmosphericPressureObservation(BaseModel):
-    pressure: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.))]
+    pressure: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     quality_code: Annotated[str, Field(max_length=1)]
 
 
@@ -157,26 +159,3 @@ def parse_line(line: str) -> ISDRecord:
         mandatory=MandatoryData(**mandatory_datum),
         additional=[],
     )
-
-
-if __name__ == "__main__":
-    import pandas as pd
-
-    with open("../../720534-00161-2024", "r") as f:
-        lines = f.readlines()
-
-    timestamps = []
-    d = []
-    for line in lines:
-        data = parse_line(line)
-        timestamps.append(data.control.datetime)
-        d.append(data)
-
-    df = pd.json_normalize([dd.mandatory.model_dump() for dd in d], sep="__")
-    df.index = timestamps
-    # df = pd.DataFrame([dd["mandatory"].model_dump() for dd in d], index=timestamps)
-    with pd.option_context("display.max_columns", None):
-        print(df)
-
-    for dd in d[:10]:
-        print(dd.mandatory)

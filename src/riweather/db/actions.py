@@ -1,10 +1,15 @@
 """Management actions on the metadata database."""
 
+from __future__ import annotations
+
 import datetime
 import pathlib
 import zipfile
-from collections.abc import Generator
-from os import PathLike
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from os import PathLike
 
 import numpy as np
 import pandas as pd
