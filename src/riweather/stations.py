@@ -400,7 +400,7 @@ class Station:
 
         data = self.fetch_raw_data(year, use_http=use_http)
 
-        timestamps = pd.DatetimeIndex([d.control.datetime for d in data])
+        timestamps = pd.DatetimeIndex([d.control.dt for d in data])
 
         if include_control:
             df_control = pd.json_normalize([d.control.model_dump() for d in data])
@@ -672,7 +672,7 @@ def select_station(ranked_stations: pd.DataFrame, rank: int = 0) -> Station:
 
     Args:
         ranked_stations: A [DataFrame][pandas.DataFrame] returned by
-            [`riweather.rank_stations`].
+            [`riweather.rank_stations`][].
         rank: Which station to return. Defaults to `rank=0`, which corresponds to
             the first (i.e. nearest) station.
 

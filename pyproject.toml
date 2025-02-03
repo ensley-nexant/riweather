@@ -20,6 +20,7 @@ dependencies = [
     "shapely~=2.0.0",
     "pandas~=2.2",
     "pydantic~=2.10.6",
+    "griffe-pydantic~=1.1.0",
     "pyproj~=3.7.0",
 ]
 
@@ -41,6 +42,7 @@ dependencies = [
     "mkdocs~=1.6.1",
     "mkdocs-autorefs~=1.3.0",
     "mkdocs-click~=0.8.1",
+    "mkdocs-jupyter~=0.25.1",
     "mkdocs-material~=9.5.50",
     "mkdocstrings[python]~=0.27.0",
     "mknotebooks~=0.8.0",
@@ -50,6 +52,7 @@ dependencies = [
 [tool.hatch.envs.docs.scripts]
 build = "mkdocs build --clean --strict"
 serve = "mkdocs serve --dev-addr localhost:8000 -w src/riweather"
+deploy = "mkdocs gh-deploy"
 
 [tool.hatch.version]
 path = "src/riweather/__about__.py"

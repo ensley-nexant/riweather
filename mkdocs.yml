@@ -1,8 +1,12 @@
 site_name: riweather
 site_author: John Ensley
+site_url: https://ensley-nexant.github.io/riweather/
 repo_url: https://github.com/ensley-nexant/riweather/
 theme:
   name: material
+  font:
+    text: Red Hat Text
+    code: Red Hat Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: ri
@@ -15,26 +19,45 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
+    - content.code.annotate
+    - content.code.copy
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
     - toc.follow
 extra_css:
   - stylesheets/extra.css
 nav:
-  - Home: index.md
-  - Installation: install.md
-  - Getting Started: getting_started.ipynb
-  - Data Resampling Introduction: data_resampling.ipynb
+  - Get Started:
+    - Welcome: index.md
+    - Installation: install.md
+  - Examples:
+    - Quick How-To: how_to.ipynb
+    - Data Resampling Introduction: resampling.ipynb
+  - Data Sources:
+    - The Integrated Surface Dataset: data_sources/integrated_surface_dataset.md
+    - Shorthand Codes: data_sources/shorthand_codes.md
   - Command Line Interface: cli.md
-  - API Reference: reference.md
+  - API Reference:
+    - Station: api/station.md
+    - Parser: api/parser.md
 markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - mkdocs-click
+  - pymdownx.extra
   - pymdownx.highlight:
       anchor_linenums: true
+      use_pygments: true
+      pygments_lang_class: true
   - pymdownx.superfences
   - smarty
   - toc:
-      permalink: True
-  - mkdocs-click
-  - attr_list
+      permalink: true
+      title: On this page
 plugins:
   - search
   - autorefs
@@ -48,22 +71,29 @@ plugins:
             - https://matplotlib.org/stable/objects.inv
             - https://numpy.org/doc/stable/objects.inv
             - https://python-visualization.github.io/folium/latest/objects.inv
+            - https://docs.pydantic.dev/latest/objects.inv
           options:
             docstring_options:
-              ignore_init_summary: True
-              trim_doctest_flags: True
-            docstring_section_style: "list"
+              ignore_init_summary: true
+              trim_doctest_flags: true
+            docstring_section_style: list
             docstring_style: google
-            heading_level: 3
+            extensions:
+            - griffe_pydantic:
+                schema: true
             line_length: 100
-            merge_init_into_class: True
-            parameter_headings: True
-            separate_signature: True
-            show_root_heading: True
-            show_root_toc_entry: false
-            show_symbol_type_heading: True
-            show_symbol_type_toc: True
-            signature_crossrefs: True
+            members_order: source
+            merge_init_into_class: true
+            parameter_headings: false
+            separate_signature: true
+            show_root_full_path: true
+            show_root_heading: true
+            show_root_members_full_path: false
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            unwrap_annotated: true
   - mknotebooks:
       execute: false
       timeout: 100
