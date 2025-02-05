@@ -43,7 +43,7 @@ class ControlData(BaseModel):
     """A flag indicating the source or combination of sources used in creating the observation.
     
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#data_source_flag)
+        [Possible values](../data_sources/shorthand_codes.md#controldatadata_source_flag)
     """
     latitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.0))]
     """The latitude coordinate of the observation. Negative values are located in the southern hemisphere."""
@@ -53,7 +53,7 @@ class ControlData(BaseModel):
     """A flag indicating the type of geophysical surface observation.
     
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#report_type_code)
+        [Possible values](../data_sources/shorthand_codes.md#controldatareport_type_code)
     """
     elevation: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The elevation of the observation relative to Mean Sea Level, in meters."""
@@ -63,7 +63,7 @@ class ControlData(BaseModel):
     """Quality control process applied to the observation.
     
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#qc_process_name)
+        [Possible values](../data_sources/shorthand_codes.md#controldataqc_process_name)
     """
 
     @field_validator("dt", mode="before")
@@ -109,7 +109,7 @@ class WindObservation(BaseModel):
     """Code that denotes the character of the wind observation.
     
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#type_code)
+        [Possible values](../data_sources/shorthand_codes.md#windobservationtype_code)
     """
     speed_rate: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     """The rate of horizontal travel of air past a fixed point, in meters per second."""
@@ -143,7 +143,7 @@ class SkyConditionObservation(BaseModel):
     """Code that denotes the method used to determine the ceiling.
     
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#ceiling_determination_code)
+        [Possible values](../data_sources/shorthand_codes.md#skyconditionobservationceiling_determination_code)
     """
     cavok_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
