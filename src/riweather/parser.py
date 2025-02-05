@@ -27,6 +27,7 @@ class ControlData(BaseModel):
     !!! usage
         [Control Data](../data_sources/integrated_surface_dataset.md#control-data)
     """
+
     total_variable_characters: int
     """Total number of characters in the variable length section. The total record length equals
     105 plus the value stored in this field.
@@ -41,7 +42,7 @@ class ControlData(BaseModel):
     """The date and time of the observation, based on Coordinated Universal Time (UTC)."""
     data_source_flag: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """A flag indicating the source or combination of sources used in creating the observation.
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#controldatadata_source_flag)
     """
@@ -51,7 +52,7 @@ class ControlData(BaseModel):
     """The longitude coordinate of the observation. Negative values are located in the western hemisphere."""
     report_type_code: Annotated[str | None, Field(max_length=5), BeforeValidator(missing_if_all_nines)]
     """A flag indicating the type of geophysical surface observation.
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#controldatareport_type_code)
     """
@@ -61,7 +62,7 @@ class ControlData(BaseModel):
     """The call letters associated with the station."""
     qc_process_name: Annotated[str, Field(max_length=4)]
     """Quality control process applied to the observation.
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#controldataqc_process_name)
     """
@@ -94,6 +95,7 @@ class ControlData(BaseModel):
 
 class WindObservation(BaseModel):
     """An observation of current wind speed and direction."""
+
     direction_angle: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """
     The angle, measured in angular degrees in a clockwise direction, between true north and the
@@ -101,13 +103,13 @@ class WindObservation(BaseModel):
     """
     direction_quality_code: Annotated[str, Field(max_length=1)]
     """Quality status of the reported [wind direction angle][riweather.parser.WindObservation.direction_angle].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
     type_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the character of the wind observation.
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#windobservationtype_code)
     """
@@ -115,7 +117,7 @@ class WindObservation(BaseModel):
     """The rate of horizontal travel of air past a fixed point, in meters per second."""
     speed_quality_code: Annotated[str, Field(max_length=1)]
     """Quality status of the reported [wind speed rate][riweather.parser.WindObservation.speed_rate].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
@@ -123,33 +125,34 @@ class WindObservation(BaseModel):
 
 class SkyConditionObservation(BaseModel):
     """An observation of current sky condition."""
+
     ceiling_height_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """
     The height above ground level (AGL) of the lowest cloud or obscuring phenomena layer aloft
     with 5/8 or more summation total sky cover, which may be predominantly opaque, or the vertical
     visibility into a surface-based obstruction.
-    
+
     !!! note
         Unlimited ceiling height coded as `22000`.
     """
     ceiling_quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height_dimension].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
     ceiling_determination_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the method used to determine the ceiling.
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#skyconditionobservationceiling_determination_code)
     """
     cavok_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
-    Code that represents whether the "Ceiling and Visibility Okay" 
+    Code that represents whether the "Ceiling and Visibility Okay"
     ([CAVOK](https://www.globeair.com/g/clouds-and-visibility-ok-cavok)) condition has been reported.
-    
+
     | Value | Description |
     | ----- | ----------- |
     | `N`   | No          |
@@ -160,20 +163,21 @@ class SkyConditionObservation(BaseModel):
 
 class VisibilityObservation(BaseModel):
     """An observation of current sky visibility."""
+
     distance_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The horizontal distance, in meters, at which an object can be seen and identified.
     Values greater than 160,000m are entered as `160000`."""
     distance_quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance_dimension].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
     variability_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
     Code that denotes whether or not the reported visibility is variable.
-    
+
     | Value | Description  |
     | ----- | ------------ |
     | `N`   | Not variable |
@@ -183,7 +187,7 @@ class VisibilityObservation(BaseModel):
     quality_variability_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [variability code][riweather.parser.VisibilityObservation.variability_code].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
@@ -191,12 +195,13 @@ class VisibilityObservation(BaseModel):
 
 class AirTemperatureObservation(BaseModel):
     """An observation of current air temperature."""
+
     temperature_c: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     """Temperature in degrees Celsius."""
     quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [temperature][riweather.parser.AirTemperatureObservation.temperature_c].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#airtemperatureobservationquality_code)
     """
@@ -209,12 +214,13 @@ class AirTemperatureObservation(BaseModel):
 
 class AtmosphericPressureObservation(BaseModel):
     """An observation of current atmospheric pressure."""
+
     pressure: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     """Air pressure relative to Mean Sea Level (MSL)."""
     quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [atmospheric pressure][riweather.parser.AtmosphericPressureObservation.pressure].
-    
+
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
     """
@@ -222,6 +228,7 @@ class AtmosphericPressureObservation(BaseModel):
 
 class MandatoryData(BaseModel):
     """Mandatory data section."""
+
     wind: WindObservation
     ceiling: SkyConditionObservation
     visibility: VisibilityObservation
@@ -240,6 +247,7 @@ class AdditionalData(BaseModel):
 
 class ISDRecord(BaseModel):
     """ISD data record."""
+
     control: ControlData
     mandatory: MandatoryData
     additional: Annotated[list[AdditionalData], Field(default_factory=list)]
