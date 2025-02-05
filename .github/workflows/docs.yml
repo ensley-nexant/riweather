@@ -27,16 +27,8 @@ jobs:
           pip install --constraint=.github/workflows/constraints.txt pip
           pip --version
 
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
-          poetry --version
+      - name: Install Hatch
+        run: pip install --upgrade hatch
 
-      - name: Install Nox
-        run: |
-          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
-          nox --version
-
-      - name: Run Nox Docs
-        run: |
-          nox --force-color -s docs-deploy -- --force
+      - name: Deploy docs to GitHub Pages
+        run: hatch run docs:deploy
