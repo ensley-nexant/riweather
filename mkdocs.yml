@@ -43,6 +43,7 @@ nav:
   - API Reference:
     - Station: api/station.md
     - Parser: api/parser.md
+    - Rollup functions: api/rollup.md
 markdown_extensions:
   - admonition
   - attr_list

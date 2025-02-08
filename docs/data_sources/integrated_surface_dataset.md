@@ -78,19 +78,24 @@ The first 60 characters of each record provide information about where the recor
 >>> line = "0184720534001612024010100154+40017-105050FM-15+156499999V0200201N001512200059N016093199+00121-00641999999"
 >>> record = parser.parse_line(line)
 >>> record.control
+ControlData(total_variable_characters=184, usaf_id='720534', wban_id='00161', dt=datetime.datetime(2024, 1, 1, 0, 15, tzinfo=datetime.timezone.utc), data_source_flag='4', latitude=40.017, longitude=-105.05, report_type_code='FM-15', elevation=1564, call_letter_id=None, qc_process_name='V020')
+
+```
+
 ControlData(
     total_variable_characters=184, 
     usaf_id='720534', 
     wban_id='00161', 
-    datetime=datetime.datetime(2024, 1, 1, 0, 15, tzinfo=datetime.timezone.utc), 
+    dt=datetime.datetime(2024, 1, 1, 0, 15, tzinfo=datetime.timezone.utc), 
     data_source_flag='4', 
     latitude=40.017,
     longitude=-105.05, 
     report_type_code='FM-15', 
     elevation=1564, 
     call_letter_id=None, 
-    qc_process_name='V020',
+    qc_process_name='V020'
 )
+
 ```
 
 ### Mandatory data
@@ -122,16 +127,16 @@ MandatoryData(
         speed_quality_code='1',
     ), 
     ceiling=SkyConditionObservation(
-        ceiling_height_dimension=22000, 
+        ceiling_height=22000, 
         ceiling_quality_code='5', 
         ceiling_determination_code=None, 
         cavok_code='N',
     ), 
     visibility=VisibilityObservation(
-        distance_dimension=16093, 
+        distance=16093, 
         distance_quality_code='1', 
         variability_code=None, 
-        quality_variability_code='9',
+        variability_quality_code='9',
     ), 
     air_temperature=AirTemperatureObservation(
         temperature_c=1.2,

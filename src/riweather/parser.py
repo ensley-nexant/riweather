@@ -126,7 +126,7 @@ class WindObservation(BaseModel):
 class SkyConditionObservation(BaseModel):
     """An observation of current sky condition."""
 
-    ceiling_height_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
+    ceiling_height: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """
     The height above ground level (AGL) of the lowest cloud or obscuring phenomena layer aloft
     with 5/8 or more summation total sky cover, which may be predominantly opaque, or the vertical
@@ -137,7 +137,7 @@ class SkyConditionObservation(BaseModel):
     """
     ceiling_quality_code: Annotated[str, Field(max_length=1)]
     """
-    Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height_dimension].
+    Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height].
 
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
@@ -164,12 +164,12 @@ class SkyConditionObservation(BaseModel):
 class VisibilityObservation(BaseModel):
     """An observation of current sky visibility."""
 
-    distance_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
+    distance: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The horizontal distance, in meters, at which an object can be seen and identified.
     Values greater than 160,000m are entered as `160000`."""
     distance_quality_code: Annotated[str, Field(max_length=1)]
     """
-    Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance_dimension].
+    Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance].
 
     !!! note
         [Possible values](../data_sources/shorthand_codes.md#quality-codes)
@@ -184,7 +184,7 @@ class VisibilityObservation(BaseModel):
     | `V`   | Variable     |
     | `9`   | Missing      |
     """
-    quality_variability_code: Annotated[str, Field(max_length=1)]
+    variability_quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [variability code][riweather.parser.VisibilityObservation.variability_code].
 
@@ -258,7 +258,7 @@ def parse_line(line: str) -> ISDRecord:
         "total_variable_characters": line[0:4],
         "usaf_id": line[4:10],
         "wban_id": line[10:15],
-        "datetime": line[15:27],
+        "dt": line[15:27],
         "data_source_flag": line[27],
         "latitude": line[28:34],
         "longitude": line[34:41],
@@ -279,7 +279,7 @@ def parse_line(line: str) -> ISDRecord:
         ),
         "ceiling": SkyConditionObservation.model_validate(
             {
-                "ceiling_height_dimension": line[70:75],
+                "ceiling_height": line[70:75],
                 "ceiling_quality_code": line[75],
                 "ceiling_determination_code": line[76],
                 "cavok_code": line[77],
@@ -287,10 +287,10 @@ def parse_line(line: str) -> ISDRecord:
         ),
         "visibility": VisibilityObservation.model_validate(
             {
-                "distance_dimension": line[78:84],
+                "distance": line[78:84],
                 "distance_quality_code": line[84],
                 "variability_code": line[85],
-                "quality_variability_code": line[86],
+                "variability_quality_code": line[86],
             }
         ),
         "air_temperature": AirTemperatureObservation.model_validate(
