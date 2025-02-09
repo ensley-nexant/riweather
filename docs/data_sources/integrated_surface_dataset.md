@@ -82,22 +82,6 @@ ControlData(total_variable_characters=184, usaf_id='720534', wban_id='00161', dt
 
 ```
 
-ControlData(
-    total_variable_characters=184, 
-    usaf_id='720534', 
-    wban_id='00161', 
-    dt=datetime.datetime(2024, 1, 1, 0, 15, tzinfo=datetime.timezone.utc), 
-    data_source_flag='4', 
-    latitude=40.017,
-    longitude=-105.05, 
-    report_type_code='FM-15', 
-    elevation=1564, 
-    call_letter_id=None, 
-    qc_process_name='V020'
-)
-
-```
-
 ### Mandatory data
 
 The next 45 characters of each record contain basic meteorological information that is present in most observations. 

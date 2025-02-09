@@ -1,96 +1,157 @@
-from datetime import datetime, timezone
-
+import pandas as pd
 import pytest
+import pytz
 
 
-def test_raw_data_returned(stn):
-    data = stn.fetch_raw_data(2025)
-    assert len(data) == 2559
+def test_fetch_data_default_args(stn):
+    df = stn.fetch_data(2024)
+    assert df.shape == (2559, 21)
 
 
-def test_parser_control_data(stndata):
-    first_record = stndata[0]
-    assert first_record.control.model_dump() == pytest.approx(
-        {
-            "total_variable_characters": 185,
-            "usaf_id": "720534",
-            "wban_id": "00161",
-            "dt": datetime(2025, 1, 1, 0, 15, tzinfo=timezone.utc),
-            "data_source_flag": "4",
-            "latitude": 40.017,
-            "longitude": -105.05,
-            "report_type_code": "FM-15",
-            "elevation": 1564,
-            "call_letter_id": None,
-            "qc_process_name": "V020",
-        }
+def test_fetch_data_one_datum(stn):
+    df = stn.fetch_data(2024, "air_temperature")
+    assert df.shape == (2559, 3)
+    assert all("air_temperature" in col for col in df.columns)
+
+
+def test_fetch_data_invalid_datum(stn):
+    with pytest.raises(ValueError, match="datum"):
+        stn.fetch_data(2024, "invalid")
+
+
+def test_fetch_data_multiple_years(stn):
+    df = stn.fetch_data([2023, 2024], "air_temperature")
+    assert df.shape == (5118, 3)
+
+
+def test_fetch_data_multiple_datums(stn):
+    df = stn.fetch_data(2024, ["wind", "air_temperature"])
+    assert df.shape == (2559, 8)
+    assert all("air_temperature" in col or "wind" in col for col in df.columns)
+
+
+def test_fetch_data_resample(stn):
+    df = stn.fetch_data(2024, "air_temperature", period="h")
+    assert df.shape == (847, 2)
+    assert sorted(df.columns) == ["air_temperature.temperature_c", "air_temperature.temperature_f"]
+    assert df.index.freq == "h"
+    assert df.index[1] - df.index[0] == pd.Timedelta(hours=1)
+
+
+def test_fetch_data_invalid_rollup(stn):
+    with pytest.raises(ValueError, match="rollup"):
+        stn.fetch_data(2024, rollup="invalid")
+
+
+def test_fetch_data_local_tz(stn):
+    df = stn.fetch_data(2024, "air_temperature", tz="US/Mountain")
+    assert df.shape == (2559, 3)
+    assert df.index.tz == pytz.timezone("US/Mountain")
+
+
+def test_fetch_data_include_control(stn):
+    df = stn.fetch_data(2024, "air_temperature", include_control=True)
+    assert df.shape == (2559, 13)
+    assert "total_variable_characters" in df.columns
+
+
+def test_fetch_data_no_include_quality_codes(stn):
+    df = stn.fetch_data(2024, "air_temperature", include_quality_codes=False)
+    assert df.shape == (2559, 2)
+    assert "air_temperature.quality_code" not in df.columns
+
+
+def test_fetch_data_temp_scale_c(stn):
+    df = stn.fetch_data(2024, "dew_point", temp_scale="C")
+    assert df.shape == (2559, 2)
+    assert "dew_point.temperature_f" not in df.columns
+
+
+def test_fetch_data_temp_scale_f(stn):
+    df = stn.fetch_data(2024, "dew_point", temp_scale="F")
+    assert df.shape == (2559, 2)
+    assert "dew_point.temperature_c" not in df.columns
+
+
+def test_fetch_data_model_dump_include(stn):
+    df = stn.fetch_data(
+        2024,
+        model_dump_include={
+            "air_temperature": {"temperature_f"},
+            "dew_point": {"temperature_f"},
+            "wind": {"speed_rate"},
+        },
     )
+    assert df.shape == (2559, 3)
+    assert sorted(df.columns) == ["air_temperature.temperature_f", "dew_point.temperature_f", "wind.speed_rate"]
 
 
-def test_parser_mandatory_data_wind(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.wind.model_dump() == pytest.approx(
-        {
-            "direction_angle": 60,
-            "direction_quality_code": "1",
-            "type_code": "N",
-            "speed_rate": 1.5,
-            "speed_quality_code": "1",
-        }
+def test_fetch_data_model_dump_include_overrides_datum(stn):
+    df = stn.fetch_data(
+        2024,
+        "visibility",
+        model_dump_include={
+            "air_temperature": {"temperature_f"},
+            "dew_point": {"temperature_f"},
+            "wind": {"speed_rate"},
+        },
     )
+    assert df.shape == (2559, 3)
+    assert sorted(df.columns) == ["air_temperature.temperature_f", "dew_point.temperature_f", "wind.speed_rate"]
 
 
-def test_parser_mandatory_data_ceiling(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.ceiling.model_dump() == pytest.approx(
-        {
-            "ceiling_height": 22000,
-            "ceiling_quality_code": "5",
-            "ceiling_determination_code": None,
-            "cavok_code": "N",
-        }
+def test_fetch_data_model_dump_exclude(stn):
+    df = stn.fetch_data(
+        2024,
+        model_dump_exclude={
+            "air_temperature": {"temperature_c"},
+            "dew_point": {"temperature_c"},
+            "wind": {"direction_angle"},
+            "sea_level_pressure": True,
+        },
     )
+    assert df.shape == (2559, 16)
+    assert "wind.direction_angle" not in df.columns
 
 
-def test_parser_mandatory_data_visibility(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.visibility.model_dump() == pytest.approx(
-        {
-            "distance": 16093,
-            "distance_quality_code": "1",
-            "variability_code": None,
-            "variability_quality_code": "9",
-        }
+def test_fetch_data_model_dump_exclude_overrides_datum(stn):
+    df = stn.fetch_data(
+        2024,
+        "sea_level_pressure",
+        model_dump_exclude={
+            "air_temperature": {"temperature_c"},
+            "dew_point": {"temperature_c"},
+            "wind": {"direction_angle"},
+            "sea_level_pressure": True,
+        },
     )
+    assert df.shape == (2559, 16)
+    assert all("sea_level_pressure" not in col for col in df.columns)
 
 
-def test_parser_mandatory_data_air_temperature(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.air_temperature.model_dump() == pytest.approx(
-        {
-            "temperature_c": -1.5,
-            "temperature_f": 29.3,
-            "quality_code": "1",
-        }
-    )
+def test_get_filenames_no_metadata(stn):
+    with pytest.warns(UserWarning, match="not found"):
+        fp = stn.get_filenames(2026)
+    assert len(fp) == 1
 
 
-def test_parser_mandatory_data_dew_point(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.dew_point.model_dump() == pytest.approx(
-        {
-            "temperature_c": -9.4,
-            "temperature_f": 15.08,
-            "quality_code": "1",
-        }
-    )
+def test_quality_report(stn):
+    df = stn.quality_report()
+    assert df.shape[1] == 18
 
 
-def test_parser_mandatory_data_sea_level_pressure(stndata):
-    first_record = stndata[0]
-    assert first_record.mandatory.sea_level_pressure.model_dump() == pytest.approx(
-        {
-            "pressure": None,
-            "quality_code": "9",
-        }
-    )
+def test_quality_report_one_year(stn):
+    df = stn.quality_report(2024)
+    assert df.shape == (18,)
+
+
+def test_fetch_raw_temp_data_legacy(stn):
+    with pytest.warns(DeprecationWarning):
+        df = stn.fetch_raw_temp_data(2024)
+    assert df.shape == (2559, 4)
+
+
+def test_fetch_temp_data_legacy(stn):
+    with pytest.warns(DeprecationWarning):
+        df = stn.fetch_temp_data(2024)
+    assert df.shape == (847, 4)

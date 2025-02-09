@@ -5,6 +5,7 @@ from __future__ import annotations
 import operator
 import warnings
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,9 @@ from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
 from riweather.parser import ISDRecord, MandatoryData
 
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
+
 __all__ = (
     "zcta_to_lat_lon",
     "rank_stations",
@@ -29,6 +33,15 @@ __all__ = (
     "rollup_midpoint",
     "rollup_instant",
 )
+
+_AGGREGABLE_FIELDS = {
+    "wind": {"speed_rate"},
+    "ceiling": {"ceiling_height"},
+    "visibility": {"distance"},
+    "air_temperature": {"temperature_c", "temperature_f"},
+    "dew_point": {"temperature_c", "temperature_f"},
+    "sea_level_pressure": {"pressure"},
+}
 
 
 def _parse_temp(s: bytes) -> float:
@@ -506,7 +519,7 @@ class Station:
                 "A record for station {} and year {} was not found in riweather's metadata. "
                 "Trying to fetch data directly from the following URL, which may not exist: {}"
             ).format(self._station.get("usaf_id"), year, filenames[0])
-            warnings.warn(msg, UserWarning)
+            warnings.warn(msg, UserWarning, stacklevel=3)
 
         return filenames
 
@@ -580,8 +593,15 @@ class Station:
         year: int | list[int],
         datum: str | list[str] | None = None,
         *,
+        period: str | None = None,
+        rollup: str = "ending",
+        upsample_first: bool = True,
+        tz: str = "UTC",
         include_control: bool = False,
         include_quality_codes: bool = True,
+        temp_scale: str | None = None,
+        model_dump_include: IncEx | None = None,
+        model_dump_exclude: IncEx | None = None,
         use_http: bool = False,
     ) -> pd.DataFrame:
         """Fetch data from ISD and return it as a [DataFrame][pandas.DataFrame].
@@ -599,40 +619,99 @@ class Station:
                 * ``'sea_level_pressure'``
 
                 If not specified, all data are returned.
+            period: The time step at which the data will be returned. If ``None``, the default, the
+                data is returned at the original times they were observed. If specified, it must be
+                a frequency string recognized by [Pandas][] such as ``'h'`` for hourly and ``'15min'``
+                for every 15 minutes (see the [docs on frequency strings](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects)).
+                The data will be [resampled](https://pandas.pydata.org/docs/user_guide/timeseries.html#resampling)
+                to the given frequency.
+            rollup: How to align values to the ``period``. Defaults to ``'ending'``, meaning that values
+                over the previous time period are averaged. Can also be ``'starting'``, ``'midpoint'``,
+                or ``'instant'``. If ``period=None``, this value is ignored.
+            upsample_first: Whether to upsample the data to the minute level prior to resampling.
+                Upsampling is recommended because it gives more accurate representations of the
+                weather observations, so it defaults to ``True``.
+            tz: The timestamps of each observation are returned from the ISD in
+                [UTC](https://en.wikipedia.org/wiki/Coordinated_Universal_Time). If this parameter
+                is set, the data will be converted to the specified timezone. The timezone string
+                should match one of the
+                [standard TZ identifiers](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones),
+                e.g. ``'US/Eastern'``, ``'US/Central'``, ``'US/Mountain'``, ``'US/Pacific'``, etc.
             include_control: If ``True``, include the [control data fields][riweather.parser.ControlData]
                 in the results.
             include_quality_codes: If ``False``, filter out all the quality code fields from the
                 results. These are columns that end in the string ``'quality_code'``.
-            use_http: Use NOAA's HTTP server instead of their FTP server. Set
-                this to ``True`` if you are running into issues with FTP.
+            temp_scale: By default, when ``'air_temperature'`` or ``'dew_point'`` are specified as
+                a datum, temperatures are returned in both degrees Celsius and degrees Fahrenheit.
+                To only include one or the other, set ``temp_scale`` to ``'C'`` or ``'F'``. Ignored
+                if no temperature values are meant to be retrieved.
+            model_dump_include: Fine-grained control over the fields that are returned. Passed
+                directly to [pydantic.BaseModel.model_dump][] as the `include` parameter; see the
+                docs for details. Takes precendence over `datum`.
+            model_dump_exclude: Fine-grained control over the fields that are returned. Passed
+                directly to [pydantic.BaseModel.model_dump][] as the `exclude` parameter; see the
+                docs for details. Takes precendence over `datum`.
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set this to ``True`` if
+                you are running into issues with FTP.
 
         Returns:
             Weather observations from the station.
         """
-        if not isinstance(datum, list):
-            datum = [datum]
+        if datum is not None:
+            if not isinstance(datum, list):
+                datum = [datum]
 
-        if not all(d in MandatoryData.model_fields for d in datum):
-            msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
+            if not all(d in MandatoryData.model_fields for d in datum):
+                msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
+                raise ValueError(msg)
+
+        if rollup not in ("starting", "ending", "midpoint", "instant"):
+            msg = "Invalid rollup"
             raise ValueError(msg)
 
         data = self.fetch_raw_data(year, use_http=use_http)
-
         timestamps = pd.DatetimeIndex([d.control.dt for d in data])
 
         if include_control:
-            df_control = pd.json_normalize([d.control.model_dump() for d in data])
+            df_control = pd.json_normalize([d.control.model_dump(exclude={"dt"}) for d in data])
             df_control.index = timestamps
         else:
             df_control = pd.DataFrame()
 
-        df_mandatory = pd.json_normalize([d.mandatory.model_dump(include=datum) for d in data])
+        if model_dump_include is not None or model_dump_exclude is not None:
+            data_pydantic_dumps = [
+                d.mandatory.model_dump(include=model_dump_include, exclude=model_dump_exclude) for d in data
+            ]
+        else:
+            data_pydantic_dumps = [d.mandatory.model_dump(include=datum) for d in data]
+
+        df_mandatory = pd.json_normalize(data_pydantic_dumps)
         df_mandatory.index = timestamps
 
         df = pd.concat([df_control, df_mandatory], axis=1)
         if not include_quality_codes:
             df = df.loc[:, df.columns[~df.columns.str.contains("quality_code")]]
+        if temp_scale is not None:
+            if temp_scale.lower() == "c":
+                df = df.loc[:, df.columns[~df.columns.str.contains("temperature_f")]]
+            elif temp_scale.lower() == "f":
+                df = df.loc[:, df.columns[~df.columns.str.contains("temperature_c")]]
 
+        if period is not None:
+            cols_to_keep = [f"{k}.{vv}" for k, v in _AGGREGABLE_FIELDS.items() for vv in v]
+            df = df.loc[:, [c for c in df.columns if c in cols_to_keep]]
+
+            if rollup == "starting":
+                df = rollup_starting(df, period, upsample_first=upsample_first)
+            elif rollup == "ending":
+                df = rollup_ending(df, period, upsample_first=upsample_first)
+            elif rollup == "midpoint":
+                df = rollup_midpoint(df, period, upsample_first=upsample_first)
+            elif rollup == "instant":
+                df = rollup_instant(df, period, upsample_first=upsample_first)
+
+        if tz != "UTC":
+            df = df.tz_convert(tz)
         return df
 
     def fetch_raw_temp_data(
@@ -663,6 +742,9 @@ class Station:
             2022-01-01 00:15:00+00:00      80.0         4.6   -2.8  -4.0
             2022-01-01 00:35:00+00:00      60.0         4.1   -4.2  -5.5
         """
+        msg = "fetch_raw_temp_data is deprecated. Please use fetch_raw_data() in the future."
+        warnings.warn(DeprecationWarning(msg), stacklevel=2)
+
         data = []
         filenames = self.get_filenames(year)
         connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
@@ -742,6 +824,9 @@ class Station:
             2022-01-01 01:00:00+00:00  63.913043    4.197826 -4.328261 -5.539674
             2022-01-01 02:00:00+00:00  17.583333    3.656250 -6.585833 -7.717917
         """
+        msg = "fetch_temp_data is deprecated. Please use fetch_data(year, datum='air_temperature') instead."
+        warnings.warn(DeprecationWarning(msg), stacklevel=2)
+
         if value is None:
             value = "both"
         elif value not in ("temperature", "dew_point"):
@@ -752,7 +837,9 @@ class Station:
             msg = "Invalid rollup"
             raise ValueError(msg)
 
-        raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
         if rollup == "starting":
             ts = rollup_starting(raw_ts, period, upsample_first=upsample_first)
         elif rollup == "ending":
@@ -825,7 +912,12 @@ def zcta_to_lat_lon(zcta: str) -> (float, float):
 
 
 def rank_stations(
-    lat: float, lon: float, *, year: int | None = None, max_distance_m: int | None = None
+    lat: float | None = None,
+    lon: float | None = None,
+    *,
+    year: int | None = None,
+    max_distance_m: int | None = None,
+    zipcode: str | None = None,
 ) -> pd.DataFrame:
     """Rank stations by distance to a point.
 
@@ -835,10 +927,18 @@ def rank_stations(
         year: If specified, only include stations with data for the given year(s).
         max_distance_m: If specified, only include stations within this distance
             (in meters) from the site.
+        zipcode: Site zip code. If ``lat`` and/or ``lon`` are not given and ``zipcode`` is, then
+            stations will be ranked according to the distance from the center point of the zip code.
 
     Returns:
         A [DataFrame][pandas.DataFrame] of station information.
     """
+    if lat is None or lon is None:
+        if zipcode is None:
+            msg = "Either lat and lon must both be provided, or zipcode must be provided."
+            raise ValueError(msg)
+        lat, lon = zcta_to_lat_lon(zipcode)
+
     station_info = {info["usaf_id"]: info for info in _calculate_distances(lat, lon)}
 
     results = (
