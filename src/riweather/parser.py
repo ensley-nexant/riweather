@@ -25,7 +25,7 @@ class ControlData(BaseModel):
     """Control data section.
 
     !!! usage
-        [Control Data](../data_sources/integrated_surface_dataset.md#control-data)
+        [Control Data](../about/integrated_surface_dataset.md#control-data)
     """
 
     total_variable_characters: int
@@ -44,7 +44,7 @@ class ControlData(BaseModel):
     """A flag indicating the source or combination of sources used in creating the observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldatadata_source_flag)
+        [Possible values](../about/shorthand_codes.md#controldatadata_source_flag)
     """
     latitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.0))]
     """The latitude coordinate of the observation. Negative values are located in the southern hemisphere."""
@@ -54,7 +54,7 @@ class ControlData(BaseModel):
     """A flag indicating the type of geophysical surface observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldatareport_type_code)
+        [Possible values](../about/shorthand_codes.md#controldatareport_type_code)
     """
     elevation: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The elevation of the observation relative to Mean Sea Level, in meters."""
@@ -64,7 +64,7 @@ class ControlData(BaseModel):
     """Quality control process applied to the observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldataqc_process_name)
+        [Possible values](../about/shorthand_codes.md#controldataqc_process_name)
     """
 
     @field_validator("dt", mode="before")
@@ -105,13 +105,13 @@ class WindObservation(BaseModel):
     """Quality status of the reported [wind direction angle][riweather.parser.WindObservation.direction_angle].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     type_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the character of the wind observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#windobservationtype_code)
+        [Possible values](../about/shorthand_codes.md#windobservationtype_code)
     """
     speed_rate: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     """The rate of horizontal travel of air past a fixed point, in meters per second."""
@@ -119,7 +119,7 @@ class WindObservation(BaseModel):
     """Quality status of the reported [wind speed rate][riweather.parser.WindObservation.speed_rate].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 
@@ -140,13 +140,13 @@ class SkyConditionObservation(BaseModel):
     Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     ceiling_determination_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the method used to determine the ceiling.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#skyconditionobservationceiling_determination_code)
+        [Possible values](../about/shorthand_codes.md#skyconditionobservationceiling_determination_code)
     """
     cavok_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
@@ -172,7 +172,7 @@ class VisibilityObservation(BaseModel):
     Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     variability_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
@@ -189,7 +189,7 @@ class VisibilityObservation(BaseModel):
     Quality status of the reported [variability code][riweather.parser.VisibilityObservation.variability_code].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 
@@ -203,7 +203,7 @@ class AirTemperatureObservation(BaseModel):
     Quality status of the reported [temperature][riweather.parser.AirTemperatureObservation.temperature_c].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#airtemperatureobservationquality_code)
+        [Possible values](../about/shorthand_codes.md#airtemperatureobservationquality_code)
     """
 
     @computed_field
@@ -222,7 +222,7 @@ class AtmosphericPressureObservation(BaseModel):
     Quality status of the reported [atmospheric pressure][riweather.parser.AtmosphericPressureObservation.pressure].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 

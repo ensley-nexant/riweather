@@ -1,7 +1,5 @@
 """Miscellaneous utility functions."""
 
-from urllib.parse import urlparse
-
 
 def is_compressed(filename):
     """Guess whether the file is compressed based on its name.

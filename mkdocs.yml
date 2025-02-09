@@ -36,9 +36,10 @@ nav:
   - Examples:
     - Quick How-To: how_to.ipynb
     - Data Resampling Introduction: resampling.ipynb
-  - Data Sources:
-    - The Integrated Surface Dataset: data_sources/integrated_surface_dataset.md
-    - Shorthand Codes: data_sources/shorthand_codes.md
+  - About the Data:
+    - The Integrated Surface Dataset: about/integrated_surface_dataset.md
+    - Structure of riweather Data: about/structure.md
+    - Shorthand Codes: about/shorthand_codes.md
   - Command Line Interface: cli.md
   - API Reference:
     - Station: api/station.md

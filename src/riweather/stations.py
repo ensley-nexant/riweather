@@ -646,11 +646,11 @@ class Station:
                 To only include one or the other, set ``temp_scale`` to ``'C'`` or ``'F'``. Ignored
                 if no temperature values are meant to be retrieved.
             model_dump_include: Fine-grained control over the fields that are returned. Passed
-                directly to [pydantic.BaseModel.model_dump][] as the `include` parameter; see the
-                docs for details. Takes precendence over `datum`.
+                directly to [``pydantic.BaseModel.model_dump``][] as the `include` parameter; see the
+                docs for details. Takes precendence over ``datum``.
             model_dump_exclude: Fine-grained control over the fields that are returned. Passed
-                directly to [pydantic.BaseModel.model_dump][] as the `exclude` parameter; see the
-                docs for details. Takes precendence over `datum`.
+                directly to [``pydantic.BaseModel.model_dump``][] as the `exclude` parameter; see the
+                docs for details. Takes precendence over ``datum``.
             use_http: Use NOAA's HTTP server instead of their FTP server. Set this to ``True`` if
                 you are running into issues with FTP.
 
@@ -723,6 +723,10 @@ class Station:
     ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
 
+        !!! warning
+            This has been deprecated and will be removed in a future release. Please consider using
+            [`riweather.Station.fetch_data`][] instead.
+
         Args:
             year: Returned data will be limited to the year(s) specified. If
                 `None`, data for all years is returned.
@@ -789,6 +793,10 @@ class Station:
         use_http: bool = False,
     ) -> pd.DataFrame | pd.Series:
         """Retrieve temperature data from the ISD.
+
+        !!! warning
+            This has been deprecated and will be removed in a future release. Please consider using
+            [`riweather.Station.fetch_data`][] instead.
 
         Args:
             year: Returned data will be limited to the year specified. If
