@@ -1,33 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/cli/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/how_to/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/install/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/resampling/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
     <url>
-         <loc>None</loc>
-         <lastmod>2023-01-13</lastmod>
-         <changefreq>daily</changefreq>
+         <loc>https://ensley-nexant.github.io/riweather/about/integrated_surface_dataset/</loc>
+         <lastmod>2025-02-10</lastmod>
+    </url>
+    <url>
+         <loc>https://ensley-nexant.github.io/riweather/about/shorthand_codes/</loc>
+         <lastmod>2025-02-10</lastmod>
+    </url>
+    <url>
+         <loc>https://ensley-nexant.github.io/riweather/about/structure/</loc>
+         <lastmod>2025-02-10</lastmod>
+    </url>
+    <url>
+         <loc>https://ensley-nexant.github.io/riweather/api/parser/</loc>
+         <lastmod>2025-02-10</lastmod>
+    </url>
+    <url>
+         <loc>https://ensley-nexant.github.io/riweather/api/rollup/</loc>
+         <lastmod>2025-02-10</lastmod>
+    </url>
+    <url>
+         <loc>https://ensley-nexant.github.io/riweather/api/station/</loc>
+         <lastmod>2025-02-10</lastmod>
     </url>
 </urlset>
