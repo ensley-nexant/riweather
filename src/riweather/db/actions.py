@@ -74,14 +74,11 @@ def iterate_zipped_shapefile(src: str | PathLike[str]) -> Generator:
         record: A dictionary of data records associated with `shape`
 
     Examples:
-        >>> for shape, record in iterate_zipped_shapefile(
+        >>> for shape, record in iterate_zipped_shapefile(  # doctest: +SKIP
         ...     "path/to/shapefile.zip"
-        ... ):  # doctest: +SKIP  # noqa
+        ... ):
         ...     print(shape)
-        ...     print(record)
-    POLYGON ((...))
-
-    {...}
+        POLYGON ((...))
     """
     with open_zipped_shapefile(pathlib.Path(src).resolve()) as sf:
         for shape_rec in sf:

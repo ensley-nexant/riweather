@@ -39,9 +39,10 @@ class NOAAFTPConnection:
         >>> with NOAAFTPConnection() as conn:
         ...     welcome = conn.ftp.getwelcome()  # see docs for ftplib.FTP
         ...     contents = conn.read_file_as_bytes("/pub/data/noaa/isd-history.txt")
-        >>> "You are accessing a U.S. Government information system" in welcome
+        ... # doctest: +SKIP
+        >>> "You are accessing a U.S. Government information system" in welcome  # doctest: +SKIP
         True
-        >>> contents.read(10)  # connection is closed outside the with block
+        >>> contents.read(10)  # doctest: +SKIP
         b'Integrated'
     """
 

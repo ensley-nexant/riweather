@@ -31,17 +31,17 @@ class TestDownloadMetadata:
         "isd-inventory.csv",
     )
 
-    def test_succeeds(self, runner):
+    def test_succeeds(self, runner, mock_requests_get, mock_ftp):
         """Exits with a status code of zero."""
         result = runner.invoke(cli.main, ["download-metadata", "-d", "."])
         assert result.exit_code == 0
 
-    def test_creates_files(self, runner):
+    def test_creates_files(self, runner, mock_requests_get, mock_ftp):
         """Creates the appropriate files in the correct directory."""
         runner.invoke(cli.main, ["download-metadata", "-d", "."])
         assert sorted(os.listdir(os.getcwd())) == sorted(self._true_filenames)
 
-    def test_gets_data(self, runner):
+    def test_gets_data(self, runner, mock_ftp):
         """Retrieves the expected data for each of the files."""
         runner.invoke(cli.main, ["download-metadata", "-d", "."])
         for fn in self._true_filenames:

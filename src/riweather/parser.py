@@ -25,7 +25,7 @@ class ControlData(BaseModel):
     """Control data section.
 
     !!! usage
-        [Control Data](../data_sources/integrated_surface_dataset.md#control-data)
+        [Control Data](../about/integrated_surface_dataset.md#control-data)
     """
 
     total_variable_characters: int
@@ -44,7 +44,7 @@ class ControlData(BaseModel):
     """A flag indicating the source or combination of sources used in creating the observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldatadata_source_flag)
+        [Possible values](../about/shorthand_codes.md#controldatadata_source_flag)
     """
     latitude: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=1000.0))]
     """The latitude coordinate of the observation. Negative values are located in the southern hemisphere."""
@@ -54,7 +54,7 @@ class ControlData(BaseModel):
     """A flag indicating the type of geophysical surface observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldatareport_type_code)
+        [Possible values](../about/shorthand_codes.md#controldatareport_type_code)
     """
     elevation: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The elevation of the observation relative to Mean Sea Level, in meters."""
@@ -64,7 +64,7 @@ class ControlData(BaseModel):
     """Quality control process applied to the observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#controldataqc_process_name)
+        [Possible values](../about/shorthand_codes.md#controldataqc_process_name)
     """
 
     @field_validator("dt", mode="before")
@@ -105,13 +105,13 @@ class WindObservation(BaseModel):
     """Quality status of the reported [wind direction angle][riweather.parser.WindObservation.direction_angle].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     type_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the character of the wind observation.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#windobservationtype_code)
+        [Possible values](../about/shorthand_codes.md#windobservationtype_code)
     """
     speed_rate: Annotated[float | None, BeforeValidator(lambda x: missing_if_all_nines(x, scaling_factor=10.0))]
     """The rate of horizontal travel of air past a fixed point, in meters per second."""
@@ -119,14 +119,14 @@ class WindObservation(BaseModel):
     """Quality status of the reported [wind speed rate][riweather.parser.WindObservation.speed_rate].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 
 class SkyConditionObservation(BaseModel):
     """An observation of current sky condition."""
 
-    ceiling_height_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
+    ceiling_height: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """
     The height above ground level (AGL) of the lowest cloud or obscuring phenomena layer aloft
     with 5/8 or more summation total sky cover, which may be predominantly opaque, or the vertical
@@ -137,16 +137,16 @@ class SkyConditionObservation(BaseModel):
     """
     ceiling_quality_code: Annotated[str, Field(max_length=1)]
     """
-    Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height_dimension].
+    Quality status of the reported [ceiling height][riweather.parser.SkyConditionObservation.ceiling_height].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     ceiling_determination_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """Code that denotes the method used to determine the ceiling.
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#skyconditionobservationceiling_determination_code)
+        [Possible values](../about/shorthand_codes.md#skyconditionobservationceiling_determination_code)
     """
     cavok_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
@@ -164,15 +164,15 @@ class SkyConditionObservation(BaseModel):
 class VisibilityObservation(BaseModel):
     """An observation of current sky visibility."""
 
-    distance_dimension: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
+    distance: Annotated[int | None, BeforeValidator(missing_if_all_nines)]
     """The horizontal distance, in meters, at which an object can be seen and identified.
     Values greater than 160,000m are entered as `160000`."""
     distance_quality_code: Annotated[str, Field(max_length=1)]
     """
-    Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance_dimension].
+    Quality status of the reported [visibility distance][riweather.parser.VisibilityObservation.distance].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
     variability_code: Annotated[str | None, Field(max_length=1), BeforeValidator(missing_if_all_nines)]
     """
@@ -184,12 +184,12 @@ class VisibilityObservation(BaseModel):
     | `V`   | Variable     |
     | `9`   | Missing      |
     """
-    quality_variability_code: Annotated[str, Field(max_length=1)]
+    variability_quality_code: Annotated[str, Field(max_length=1)]
     """
     Quality status of the reported [variability code][riweather.parser.VisibilityObservation.variability_code].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 
@@ -203,7 +203,7 @@ class AirTemperatureObservation(BaseModel):
     Quality status of the reported [temperature][riweather.parser.AirTemperatureObservation.temperature_c].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#airtemperatureobservationquality_code)
+        [Possible values](../about/shorthand_codes.md#airtemperatureobservationquality_code)
     """
 
     @computed_field
@@ -222,7 +222,7 @@ class AtmosphericPressureObservation(BaseModel):
     Quality status of the reported [atmospheric pressure][riweather.parser.AtmosphericPressureObservation.pressure].
 
     !!! note
-        [Possible values](../data_sources/shorthand_codes.md#quality-codes)
+        [Possible values](../about/shorthand_codes.md#quality-codes)
     """
 
 
@@ -258,7 +258,7 @@ def parse_line(line: str) -> ISDRecord:
         "total_variable_characters": line[0:4],
         "usaf_id": line[4:10],
         "wban_id": line[10:15],
-        "datetime": line[15:27],
+        "dt": line[15:27],
         "data_source_flag": line[27],
         "latitude": line[28:34],
         "longitude": line[34:41],
@@ -279,7 +279,7 @@ def parse_line(line: str) -> ISDRecord:
         ),
         "ceiling": SkyConditionObservation.model_validate(
             {
-                "ceiling_height_dimension": line[70:75],
+                "ceiling_height": line[70:75],
                 "ceiling_quality_code": line[75],
                 "ceiling_determination_code": line[76],
                 "cavok_code": line[77],
@@ -287,10 +287,10 @@ def parse_line(line: str) -> ISDRecord:
         ),
         "visibility": VisibilityObservation.model_validate(
             {
-                "distance_dimension": line[78:84],
+                "distance": line[78:84],
                 "distance_quality_code": line[84],
                 "variability_code": line[85],
-                "quality_variability_code": line[86],
+                "variability_quality_code": line[86],
             }
         ),
         "air_temperature": AirTemperatureObservation.model_validate(

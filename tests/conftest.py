@@ -3,18 +3,15 @@
 import gzip
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
+import riweather
 from riweather import utils
 
 
-def pytest_configure(config):
-    """Pytest configuration hook."""
-    config.addinivalue_line("markers", "e2e: mark as end-to-end test")
-
-
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def mock_requests_get(module_mocker):
     """Mocked requests.get object."""
     mock = module_mocker.patch("requests.get")
@@ -24,7 +21,7 @@ def mock_requests_get(module_mocker):
     return mock
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def mock_ftp(module_mocker):
     """Mocked ftplib.FTP object."""
 
@@ -48,3 +45,27 @@ def cleandir():
         os.chdir(newpath)
         yield
         os.chdir(old_cwd)
+
+
+@pytest.fixture(scope="module")
+def mock_ftp_data(module_mocker):
+    """Mocked ftplib.FTP object."""
+
+    def _side_effect(cmd, callback):
+        with open(Path(__file__).parent / "data/720534-00161-2025.gz", "rb") as f:
+            contents = f.read()
+        return callback(contents)
+
+    mock = module_mocker.patch("ftplib.FTP", autospec=True)
+    mock.return_value.retrbinary.side_effect = _side_effect
+    return mock
+
+
+@pytest.fixture(scope="module")
+def stn(mock_ftp_data):
+    return riweather.Station("720534")
+
+
+@pytest.fixture(scope="module")
+def stndata(stn):
+    return stn.fetch_raw_data(2025)

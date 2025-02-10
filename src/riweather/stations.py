@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import operator
+import warnings
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -15,6 +17,10 @@ from sqlalchemy import select
 from riweather import MetadataSession, parser
 from riweather.connection import NOAAFTPConnection, NOAAHTTPConnection
 from riweather.db import models
+from riweather.parser import ISDRecord, MandatoryData
+
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
 
 __all__ = (
     "zcta_to_lat_lon",
@@ -28,14 +34,21 @@ __all__ = (
     "rollup_instant",
 )
 
-from riweather.parser import ISDRecord, MandatoryData
+_AGGREGABLE_FIELDS = {
+    "wind": {"speed_rate"},
+    "ceiling": {"ceiling_height"},
+    "visibility": {"distance"},
+    "air_temperature": {"temperature_c", "temperature_f"},
+    "dew_point": {"temperature_c", "temperature_f"},
+    "sea_level_pressure": {"pressure"},
+}
 
 
 def _parse_temp(s: bytes) -> float:
     return float(s) / 10.0 if s.decode("utf-8") != "+9999" else float("nan")
 
 
-def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
+def upsample(data: pd.Series | pd.DataFrame, period: str = "min") -> pd.Series | pd.DataFrame:
     """Upsample and interpolate time series data.
 
     Args:
@@ -55,23 +68,50 @@ def upsample(data: pd.Series | pd.DataFrame, period: str = "min"):
         ...         freq="32min",
         ...     ),
         ... )
-        >>> upsample(t, period="min").head()
+        >>> upsample(t)
         2023-01-01 00:01:00     1.00000
         2023-01-01 00:02:00     1.03125
         2023-01-01 00:03:00     1.06250
         2023-01-01 00:04:00     1.09375
         2023-01-01 00:05:00     1.12500
-        Freq: T, Length: 65, dtype: float64
+                                 ...
+        2023-01-01 01:01:00     9.00000
+        2023-01-01 01:02:00     9.25000
+        2023-01-01 01:03:00     9.50000
+        2023-01-01 01:04:00     9.75000
+        2023-01-01 01:05:00    10.00000
+        Freq: min, Length: 65, dtype: float64
+
+        You can upsample to a different frequency if you want.
+
+        >>> upsample(t, period="5min")
+        2023-01-01 00:00:00     1.000000
+        2023-01-01 00:05:00     1.166667
+        2023-01-01 00:10:00     1.333333
+        2023-01-01 00:15:00     1.500000
+        2023-01-01 00:20:00     1.666667
+        2023-01-01 00:25:00     1.833333
+        2023-01-01 00:30:00     2.000000
+        2023-01-01 00:35:00     3.142857
+        2023-01-01 00:40:00     4.285714
+        2023-01-01 00:45:00     5.428571
+        2023-01-01 00:50:00     6.571429
+        2023-01-01 00:55:00     7.714286
+        2023-01-01 01:00:00     8.857143
+        2023-01-01 01:05:00    10.000000
+        Freq: 5min, dtype: float64
     """
     return data.resample(period).mean().interpolate(method="linear", limit=60, limit_direction="both")
 
 
-def rollup_starting(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
+def rollup_starting(
+    data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True
+) -> pd.Series | pd.DataFrame:
     """Roll up data, labelled with the period start.
 
     Args:
         data: Time series data with a datetime index
-        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        period: Period to resample to. Defaults to `"h"`, which is hourly.
         upsample_first: Perform minute-level upsampling prior to calculating
             the period average.
 
@@ -88,22 +128,60 @@ def rollup_starting(data: pd.Series | pd.DataFrame, period: str = "h", *, upsamp
         ...         freq="32min",
         ...     ),
         ... )
+        >>> t
+        2023-01-01 00:01:00     1
+        2023-01-01 00:33:00     2
+        2023-01-01 01:05:00    10
+        Freq: 32min, dtype: int64
+
+        By default, the data are [upsampled][riweather.upsample] to minute-level before aggregation.
+
         >>> rollup_starting(t)
         2023-01-01 00:00:00    3.207627
         2023-01-01 01:00:00    9.375000
-        Freq: H, dtype: float64
+        Freq: h, dtype: float64
+
+        The above is equivalent to upsampling and then aggregating with [Pandas `resample()`][pandas.Series.resample]:
+
+        >>> x = upsample(t, period="min")
+        >>> x
+        2023-01-01 00:01:00     1.00000
+        2023-01-01 00:02:00     1.03125
+        2023-01-01 00:03:00     1.06250
+        2023-01-01 00:04:00     1.09375
+        2023-01-01 00:05:00     1.12500
+                                 ...
+        2023-01-01 01:01:00     9.00000
+        2023-01-01 01:02:00     9.25000
+        2023-01-01 01:03:00     9.50000
+        2023-01-01 01:04:00     9.75000
+        2023-01-01 01:05:00    10.00000
+        Freq: min, Length: 65, dtype: float64
+        >>> x.resample("h").mean()
+        2023-01-01 00:00:00    3.207627
+        2023-01-01 01:00:00    9.375000
+        Freq: h, dtype: float64
+
+        To skip upsampling and aggregate raw values only, use `upsample_first=False`.
+
+        >>> rollup_starting(t, upsample_first=False)
+        2023-01-01 00:00:00     1.5
+        2023-01-01 01:00:00    10.0
+        Freq: h, dtype: float64
     """
     if upsample_first:
         data = upsample(data, period="min")
     return data.resample(period, label="left", closed="left").mean()
 
 
-def rollup_ending(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
+def rollup_ending(
+    data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True
+) -> pd.Series | pd.DataFrame:
     """Roll up data, labelled with the period end.
 
     Args:
         data: Time series data with a datetime index
-        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        period: Period to resample to. Defaults to `"h"`, which is hourly.
         upsample_first: Perform minute-level upsampling prior to calculating
             the period average.
 
@@ -120,17 +198,55 @@ def rollup_ending(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample
         ...         freq="32min",
         ...     ),
         ... )
+        >>> t
+        2023-01-01 00:01:00     1
+        2023-01-01 00:33:00     2
+        2023-01-01 01:05:00    10
+        Freq: 32min, dtype: int64
+
+        By default, the data are [upsampled][riweather.upsample] to minute-level before aggregation.
+
         >>> rollup_ending(t)
         2023-01-01 01:00:00    3.3
         2023-01-01 02:00:00    9.5
-        Freq: H, dtype: float64
+        Freq: h, dtype: float64
+
+        The above is equivalent to upsampling and then aggregating with [Pandas `resample()`][pandas.Series.resample]:
+
+        >>> x = upsample(t, period="min")
+        >>> x
+        2023-01-01 00:01:00     1.00000
+        2023-01-01 00:02:00     1.03125
+        2023-01-01 00:03:00     1.06250
+        2023-01-01 00:04:00     1.09375
+        2023-01-01 00:05:00     1.12500
+                                 ...
+        2023-01-01 01:01:00     9.00000
+        2023-01-01 01:02:00     9.25000
+        2023-01-01 01:03:00     9.50000
+        2023-01-01 01:04:00     9.75000
+        2023-01-01 01:05:00    10.00000
+        Freq: min, Length: 65, dtype: float64
+        >>> x.resample("h", label="right", closed="right").mean()
+        2023-01-01 01:00:00    3.3
+        2023-01-01 02:00:00    9.5
+        Freq: h, dtype: float64
+
+        To skip upsampling and aggregate raw values only, use `upsample_first=False`.
+
+        >>> rollup_ending(t, upsample_first=False)
+        2023-01-01 01:00:00     1.5
+        2023-01-01 02:00:00    10.0
+        Freq: h, dtype: float64
     """
     if upsample_first:
         data = upsample(data, period="min")
     return data.resample(period, label="right", closed="right").mean()
 
 
-def rollup_midpoint(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
+def rollup_midpoint(
+    data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True
+) -> pd.Series | pd.DataFrame:
     """Roll up data, labelled with the period midpoint.
 
     Args:
@@ -152,23 +268,62 @@ def rollup_midpoint(data: pd.Series | pd.DataFrame, period: str = "h", *, upsamp
         ...         freq="32min",
         ...     ),
         ... )
+        >>> t
+        2023-01-01 00:01:00     1
+        2023-01-01 00:33:00     2
+        2023-01-01 01:05:00    10
+        Freq: 32min, dtype: int64
+
+        By default, the data are [upsampled][riweather.upsample] to minute-level before aggregation.
+
         >>> rollup_midpoint(t)
         2023-01-01 00:00:00    1.437500
         2023-01-01 01:00:00    5.661458
-        Freq: H, dtype: float64
+        Freq: h, dtype: float64
+
+        The above is equivalent to upsampling, [shifting][pandas.Series.shift] the data forward
+        by half of the period, and then aggregating with [Pandas `resample()`][pandas.Series.resample]:
+
+        >>> x = upsample(t, period="min")
+        >>> x
+        2023-01-01 00:01:00     1.00000
+        2023-01-01 00:02:00     1.03125
+        2023-01-01 00:03:00     1.06250
+        2023-01-01 00:04:00     1.09375
+        2023-01-01 00:05:00     1.12500
+                                 ...
+        2023-01-01 01:01:00     9.00000
+        2023-01-01 01:02:00     9.25000
+        2023-01-01 01:03:00     9.50000
+        2023-01-01 01:04:00     9.75000
+        2023-01-01 01:05:00    10.00000
+        Freq: min, Length: 65, dtype: float64
+        >>> x.shift(freq="30min").resample("h").mean()
+        2023-01-01 00:00:00    1.437500
+        2023-01-01 01:00:00    5.661458
+        Freq: h, dtype: float64
+
+        To skip upsampling and aggregate raw values only, use `upsample_first=False`.
+
+        >>> rollup_midpoint(t, upsample_first=False)
+        2023-01-01 00:00:00    1.0
+        2023-01-01 01:00:00    6.0
+        Freq: h, dtype: float64
     """
     if upsample_first:
         data = upsample(data, period="min")
-    half_period = to_offset(to_offset(period).delta / 2)
+    half_period = to_offset(period) / 2
     return data.shift(freq=half_period).resample(period, label="left", closed="left").mean()
 
 
-def rollup_instant(data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True):
+def rollup_instant(
+    data: pd.Series | pd.DataFrame, period: str = "h", *, upsample_first: bool = True
+) -> pd.Series | pd.DataFrame:
     """Roll up data, labelled with interpolated values.
 
     Args:
         data: Time series data with a datetime index
-        period: Period to resample to. Defaults to `"H"`, which is hourly.
+        period: Period to resample to. Defaults to `h`, which is hourly.
         upsample_first: Perform minute-level upsampling prior to returning
             a value.
 
@@ -185,10 +340,48 @@ def rollup_instant(data: pd.Series | pd.DataFrame, period: str = "h", *, upsampl
         ...         freq="32min",
         ...     ),
         ... )
+        >>> t
+        2023-01-01 00:01:00     1
+        2023-01-01 00:33:00     2
+        2023-01-01 01:05:00    10
+        Freq: 32min, dtype: int64
+
+        By default, the data are [upsampled][riweather.upsample] to minute-level before aggregation.
+
         >>> rollup_instant(t)
         2023-01-01 00:00:00    1.00
         2023-01-01 01:00:00    8.75
-        Freq: H, dtype: float64
+        Freq: h, dtype: float64
+
+        The above is equivalent to upsampling and then aggregating with [Pandas `resample()`][pandas.Series.resample],
+        but instead of taking the mean over each time period, taking the first value:
+
+        >>> x = upsample(t, period="min")
+        >>> x
+        2023-01-01 00:01:00     1.00000
+        2023-01-01 00:02:00     1.03125
+        2023-01-01 00:03:00     1.06250
+        2023-01-01 00:04:00     1.09375
+        2023-01-01 00:05:00     1.12500
+                                 ...
+        2023-01-01 01:01:00     9.00000
+        2023-01-01 01:02:00     9.25000
+        2023-01-01 01:03:00     9.50000
+        2023-01-01 01:04:00     9.75000
+        2023-01-01 01:05:00    10.00000
+        Freq: min, Length: 65, dtype: float64
+        >>> x.resample("h").first()
+        2023-01-01 00:00:00    1.00
+        2023-01-01 01:00:00    8.75
+        Freq: h, dtype: float64
+
+        To skip upsampling and aggregate raw values only, use `upsample_first=False`. Notice that
+        this is simply the first value in every time period (hour by default).
+
+        >>> rollup_instant(t, upsample_first=False)
+        2023-01-01 00:00:00     1
+        2023-01-01 01:00:00    10
+        Freq: h, dtype: int64
     """
     if upsample_first:
         data = upsample(data, period="min")
@@ -204,11 +397,6 @@ class Station:
         Station("720534")
         >>> print(s.name, s.latitude, s.longitude)
         ERIE MUNICIPAL AIRPORT 40.017 -105.05
-
-    Attributes:
-        name: Station name.
-        state: US state in which the station is located.
-        wban_ids: List of valid WBAN (Weather Bureau Army Navy) identifiers.
     """
 
     def __init__(self, usaf_id: str, *, load_metadata_on_init: bool = True) -> None:
@@ -258,7 +446,7 @@ class Station:
         Examples:
             >>> s = Station("720534")
             >>> s.name
-            ERIE MUNICIPAL AIRPORT
+            'ERIE MUNICIPAL AIRPORT'
         """
         return self._station.get("name")
 
@@ -289,7 +477,7 @@ class Station:
         Examples:
             >>> s = Station("720534")
             >>> s.state
-            CO
+            'CO'
         """
         return self._station.get("state")
 
@@ -324,6 +512,14 @@ class Station:
                 filenames.append(  # noqa: PERF401
                     filename_template.format(self.usaf_id, row.wban_id, row.year)
                 )
+
+        if len(filenames) == 0:
+            filenames = [filename_template.format(self.usaf_id, self.recent_wban_id, year)]
+            msg = (
+                "A record for station {} and year {} was not found in riweather's metadata. "
+                "Trying to fetch data directly from the following URL, which may not exist: {}"
+            ).format(self._station.get("usaf_id"), year, filenames[0])
+            warnings.warn(msg, UserWarning, stacklevel=3)
 
         return filenames
 
@@ -369,6 +565,16 @@ class Station:
         return pd.DataFrame(results).squeeze()
 
     def fetch_raw_data(self, year: int | list[int], *, use_http: bool = False) -> list[ISDRecord]:
+        """Fetch data from ISD.
+
+        Args:
+            year: Year or years of data to fetch.
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set
+                this to ``True`` if you are running into issues with FTP.
+
+        Returns:
+            A list of data records from the ISD database.
+        """
         if not isinstance(year, list):
             year = [year]
 
@@ -387,34 +593,125 @@ class Station:
         year: int | list[int],
         datum: str | list[str] | None = None,
         *,
+        period: str | None = None,
+        rollup: str = "ending",
+        upsample_first: bool = True,
+        tz: str = "UTC",
         include_control: bool = False,
         include_quality_codes: bool = True,
+        temp_scale: str | None = None,
+        model_dump_include: IncEx | None = None,
+        model_dump_exclude: IncEx | None = None,
         use_http: bool = False,
     ) -> pd.DataFrame:
-        if not isinstance(datum, list):
-            datum = [datum]
+        """Fetch data from ISD and return it as a [DataFrame][pandas.DataFrame].
 
-        if not all(d in MandatoryData.model_fields for d in datum):
-            msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
+        Args:
+            year: Year or years of data to fetch.
+            datum: Data elements to include in the results. Must be one or more of the
+                [mandatory data fields][riweather.parser.MandatoryData]:
+
+                * ``'wind'``
+                * ``'ceiling'``
+                * ``'visibility'``
+                * ``'air_temperature'``
+                * ``'dew_point'``
+                * ``'sea_level_pressure'``
+
+                If not specified, all data are returned.
+            period: The time step at which the data will be returned. If ``None``, the default, the
+                data is returned at the original times they were observed. If specified, it must be
+                a frequency string recognized by [Pandas][] such as ``'h'`` for hourly and ``'15min'``
+                for every 15 minutes (see the [docs on frequency strings](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects)).
+                The data will be [resampled](https://pandas.pydata.org/docs/user_guide/timeseries.html#resampling)
+                to the given frequency.
+            rollup: How to align values to the ``period``. Defaults to ``'ending'``, meaning that values
+                over the previous time period are averaged. Can also be ``'starting'``, ``'midpoint'``,
+                or ``'instant'``. If ``period=None``, this value is ignored.
+            upsample_first: Whether to upsample the data to the minute level prior to resampling.
+                Upsampling is recommended because it gives more accurate representations of the
+                weather observations, so it defaults to ``True``.
+            tz: The timestamps of each observation are returned from the ISD in
+                [UTC](https://en.wikipedia.org/wiki/Coordinated_Universal_Time). If this parameter
+                is set, the data will be converted to the specified timezone. The timezone string
+                should match one of the
+                [standard TZ identifiers](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones),
+                e.g. ``'US/Eastern'``, ``'US/Central'``, ``'US/Mountain'``, ``'US/Pacific'``, etc.
+            include_control: If ``True``, include the [control data fields][riweather.parser.ControlData]
+                in the results.
+            include_quality_codes: If ``False``, filter out all the quality code fields from the
+                results. These are columns that end in the string ``'quality_code'``.
+            temp_scale: By default, when ``'air_temperature'`` or ``'dew_point'`` are specified as
+                a datum, temperatures are returned in both degrees Celsius and degrees Fahrenheit.
+                To only include one or the other, set ``temp_scale`` to ``'C'`` or ``'F'``. Ignored
+                if no temperature values are meant to be retrieved.
+            model_dump_include: Fine-grained control over the fields that are returned. Passed
+                directly to [``pydantic.BaseModel.model_dump``][] as the `include` parameter; see the
+                docs for details. Takes precendence over ``datum``.
+            model_dump_exclude: Fine-grained control over the fields that are returned. Passed
+                directly to [``pydantic.BaseModel.model_dump``][] as the `exclude` parameter; see the
+                docs for details. Takes precendence over ``datum``.
+            use_http: Use NOAA's HTTP server instead of their FTP server. Set this to ``True`` if
+                you are running into issues with FTP.
+
+        Returns:
+            Weather observations from the station.
+        """
+        if datum is not None:
+            if not isinstance(datum, list):
+                datum = [datum]
+
+            if not all(d in MandatoryData.model_fields for d in datum):
+                msg = f"datum must be a subset of the following: {list(MandatoryData.model_fields)}"
+                raise ValueError(msg)
+
+        if rollup not in ("starting", "ending", "midpoint", "instant"):
+            msg = "Invalid rollup"
             raise ValueError(msg)
 
         data = self.fetch_raw_data(year, use_http=use_http)
-
         timestamps = pd.DatetimeIndex([d.control.dt for d in data])
 
         if include_control:
-            df_control = pd.json_normalize([d.control.model_dump() for d in data])
+            df_control = pd.json_normalize([d.control.model_dump(exclude={"dt"}) for d in data])
             df_control.index = timestamps
         else:
             df_control = pd.DataFrame()
 
-        df_mandatory = pd.json_normalize([d.mandatory.model_dump(include=datum) for d in data])
+        if model_dump_include is not None or model_dump_exclude is not None:
+            data_pydantic_dumps = [
+                d.mandatory.model_dump(include=model_dump_include, exclude=model_dump_exclude) for d in data
+            ]
+        else:
+            data_pydantic_dumps = [d.mandatory.model_dump(include=datum) for d in data]
+
+        df_mandatory = pd.json_normalize(data_pydantic_dumps)
         df_mandatory.index = timestamps
 
         df = pd.concat([df_control, df_mandatory], axis=1)
         if not include_quality_codes:
             df = df.loc[:, df.columns[~df.columns.str.contains("quality_code")]]
+        if temp_scale is not None:
+            if temp_scale.lower() == "c":
+                df = df.loc[:, df.columns[~df.columns.str.contains("temperature_f")]]
+            elif temp_scale.lower() == "f":
+                df = df.loc[:, df.columns[~df.columns.str.contains("temperature_c")]]
 
+        if period is not None:
+            cols_to_keep = [f"{k}.{vv}" for k, v in _AGGREGABLE_FIELDS.items() for vv in v]
+            df = df.loc[:, [c for c in df.columns if c in cols_to_keep]]
+
+            if rollup == "starting":
+                df = rollup_starting(df, period, upsample_first=upsample_first)
+            elif rollup == "ending":
+                df = rollup_ending(df, period, upsample_first=upsample_first)
+            elif rollup == "midpoint":
+                df = rollup_midpoint(df, period, upsample_first=upsample_first)
+            elif rollup == "instant":
+                df = rollup_instant(df, period, upsample_first=upsample_first)
+
+        if tz != "UTC":
+            df = df.tz_convert(tz)
         return df
 
     def fetch_raw_temp_data(
@@ -425,6 +722,10 @@ class Station:
         use_http: bool = False,
     ) -> pd.DataFrame:
         """Retrieve raw weather data from the ISD.
+
+        !!! warning
+            This has been deprecated and will be removed in a future release. Please consider using
+            [`riweather.Station.fetch_data`][] instead.
 
         Args:
             year: Returned data will be limited to the year(s) specified. If
@@ -440,11 +741,14 @@ class Station:
 
         Examples:
             >>> s = Station("720534")
-            >>> print(s.fetch_raw_temp_data(2022).head(2))
-                                       tempC  dewC
-            2022-01-01 00:15:00+00:00   -2.8  -4.0
-            2022-01-01 00:35:00+00:00   -4.2  -5.5
+            >>> print(s.fetch_raw_temp_data(2022).head(2))  # doctest: +SKIP
+                                       wind_dir  wind_speed  tempC  dewC
+            2022-01-01 00:15:00+00:00      80.0         4.6   -2.8  -4.0
+            2022-01-01 00:35:00+00:00      60.0         4.1   -4.2  -5.5
         """
+        msg = "fetch_raw_temp_data is deprecated. Please use fetch_raw_data() in the future."
+        warnings.warn(DeprecationWarning(msg), stacklevel=2)
+
         data = []
         filenames = self.get_filenames(year)
         connector = NOAAHTTPConnection if use_http else NOAAFTPConnection
@@ -482,13 +786,17 @@ class Station:
         year: int | list[int] | None = None,
         value: str | None = None,
         scale: str = "C",
-        period: str = "H",
+        period: str = "h",
         rollup: str = "ending",
         *,
         upsample_first: bool = True,
         use_http: bool = False,
     ) -> pd.DataFrame | pd.Series:
         """Retrieve temperature data from the ISD.
+
+        !!! warning
+            This has been deprecated and will be removed in a future release. Please consider using
+            [`riweather.Station.fetch_data`][] instead.
 
         Args:
             year: Returned data will be limited to the year specified. If
@@ -499,8 +807,8 @@ class Station:
             scale: Return the value(s) in Celsius (`"C"`, the default) or
                 Fahrenheit (`"F"`).
             period: The time step at which the data will be returned. Defaults
-                to `"H"`, which corresponds to hourly data. Other possible
-                values are `"30T"` or `"30min"` for half-hourly data, `"15T"`/`"15min"`
+                to `"h"`, which corresponds to hourly data. Other possible
+                values are `"30min"` for half-hourly data, `"15min"`
                 for quarter-hourly data, and so on. See the [Pandas documentation
                 on frequency strings](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects)
                 for more details on possible values.
@@ -519,11 +827,14 @@ class Station:
 
         Examples:
             >>> s = Station("720534")
-            >>> print(s.fetch_temp_data(2022).head(2))
-                                          tempC      dewC
-            2022-01-01 00:00:00+00:00 -4.298889 -5.512222
-            2022-01-01 01:00:00+00:00 -6.555833 -7.688333
+            >>> print(s.fetch_temp_data(2022).head(2))  # doctest: +SKIP
+                                        wind_dir  wind_speed     tempC      dewC
+            2022-01-01 01:00:00+00:00  63.913043    4.197826 -4.328261 -5.539674
+            2022-01-01 02:00:00+00:00  17.583333    3.656250 -6.585833 -7.717917
         """
+        msg = "fetch_temp_data is deprecated. Please use fetch_data(year, datum='air_temperature') instead."
+        warnings.warn(DeprecationWarning(msg), stacklevel=2)
+
         if value is None:
             value = "both"
         elif value not in ("temperature", "dew_point"):
@@ -534,7 +845,9 @@ class Station:
             msg = "Invalid rollup"
             raise ValueError(msg)
 
-        raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            raw_ts = self.fetch_raw_temp_data(year, scale=scale, use_http=use_http)
         if rollup == "starting":
             ts = rollup_starting(raw_ts, period, upsample_first=upsample_first)
         elif rollup == "ending":
@@ -607,7 +920,12 @@ def zcta_to_lat_lon(zcta: str) -> (float, float):
 
 
 def rank_stations(
-    lat: float, lon: float, *, year: int | None = None, max_distance_m: int | None = None
+    lat: float | None = None,
+    lon: float | None = None,
+    *,
+    year: int | None = None,
+    max_distance_m: int | None = None,
+    zipcode: str | None = None,
 ) -> pd.DataFrame:
     """Rank stations by distance to a point.
 
@@ -617,10 +935,18 @@ def rank_stations(
         year: If specified, only include stations with data for the given year(s).
         max_distance_m: If specified, only include stations within this distance
             (in meters) from the site.
+        zipcode: Site zip code. If ``lat`` and/or ``lon`` are not given and ``zipcode`` is, then
+            stations will be ranked according to the distance from the center point of the zip code.
 
     Returns:
         A [DataFrame][pandas.DataFrame] of station information.
     """
+    if lat is None or lon is None:
+        if zipcode is None:
+            msg = "Either lat and lon must both be provided, or zipcode must be provided."
+            raise ValueError(msg)
+        lat, lon = zcta_to_lat_lon(zipcode)
+
     station_info = {info["usaf_id"]: info for info in _calculate_distances(lat, lon)}
 
     results = (

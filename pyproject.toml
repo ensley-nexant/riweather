@@ -20,7 +20,6 @@ dependencies = [
     "shapely~=2.0.0",
     "pandas~=2.2",
     "pydantic~=2.10.6",
-    "griffe-pydantic~=1.1.0",
     "pyproj~=3.7.0",
 ]
 
@@ -37,8 +36,13 @@ riweather = "riweather.cli:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+
+[tool.coverage.report]
+show_missing = true
+
 [tool.hatch.envs.docs]
 dependencies = [
+    "griffe-pydantic~=1.1.0",
     "mkdocs~=1.6.1",
     "mkdocs-autorefs~=1.3.0",
     "mkdocs-click~=0.8.1",
@@ -54,8 +58,15 @@ build = "mkdocs build --clean --strict"
 serve = "mkdocs serve --dev-addr localhost:8000 -w src/riweather"
 deploy = "mkdocs gh-deploy"
 
+[tool.hatch.envs.hatch-test]
+default-args = ["--config-file=pyproject.toml"]
+
 [tool.hatch.version]
 path = "src/riweather/__about__.py"
+
+[tool.pytest.ini_options]
+addopts = ['--doctest-modules', '--doctest-glob=*.md']
+testpaths = ["tests", "src/riweather"]
 
 [tool.ruff.lint]
 ignore = [
@@ -72,4 +83,5 @@ ignore = [
 ]
 "**/tests/**/*" = [
     "ARG001",
+    "ARG002",
 ]
