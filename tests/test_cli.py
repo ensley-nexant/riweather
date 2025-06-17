@@ -16,7 +16,7 @@ def runner():
 
 def test_main_succeeds(runner):
     """Exits with a status code of zero."""
-    result = runner.invoke(cli.main)
+    result = runner.invoke(cli.main, ["--help"])
     assert result.exit_code == 0
 
 
